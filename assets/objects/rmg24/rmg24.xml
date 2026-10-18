@@ -1,0 +1,73 @@
+<!-- RealMan RMG24 two-finger parallel gripper (MuJoCo).
+     Meshes from official STEP (mm) with scale 0.001. Frame: flange origin, +Z fingers, +Y open.
+     q=0 closed (CAD pose); each finger travel 0.0325 m (stroke 0.065 m). -->
+<mujoco model="rmg24">
+  <compiler angle="radian" autolimits="true" balanceinertia="true"/>
+  <option gravity="0 0 -9.81"/>
+  <default>
+    <default class="rmg24">
+      <joint limited="true" damping="0.5" armature="0.0002"/>
+      <default class="visual">
+        <geom contype="0" conaffinity="0" group="2"/>
+      </default>
+      <default class="collision">
+        <geom condim="3" contype="1" conaffinity="1" group="3"
+              solref="0.005 1" solimp="0.99 0.999 1e-05" friction="1.2 0.01 0.01"/>
+      </default>
+    </default>
+  </default>
+
+  <asset>
+    <material name="rmg24_body" rgba="0.22 0.23 0.25 1" reflectance="0.06" shininess="0.16"
+              specular="0.22" roughness="0.62"/>
+    <material name="rmg24_finger" rgba="0.18 0.18 0.20 1" reflectance="0.05" shininess="0.12"
+              specular="0.16" roughness="0.68"/>
+    <material name="rmg24_collision" rgba="1.0 0.28 0.1 0.9"/>
+    <mesh name="rmg24_base" file="meshes/base.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="rmg24_finger_left" file="meshes/finger_left.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="rmg24_finger_right" file="meshes/finger_right.stl" scale="0.001 0.001 0.001"/>
+  </asset>
+
+  <worldbody>
+    <body name="rmg24_base" childclass="rmg24">
+      <inertial pos="2.83035e-05 -0.000354205 0.0425726" mass="0.544157" fullinertia="0.000622062 0.000454583 0.000417435 2.35624e-06 -1.31719e-06 -3.71671e-06"/>
+      <geom name="rmg24_base_visual" type="mesh" mesh="rmg24_base" class="visual" material="rmg24_body"/>
+      <geom name="rmg24_base_collision" type="mesh" mesh="rmg24_base" class="collision" material="rmg24_collision"/>
+      <site name="rmg24_flange" pos="0 0 0" size="0.001" rgba="0 0 0 0" group="4"/>
+      <site name="rmg24_tcp" pos="0 0 0.137" size="0.001" rgba="0 0 0 0" group="4"/>
+      <body name="rmg24_finger_left">
+        <joint name="rmg24_left" type="slide" axis="0 1 0" range="-0.0325 0"/>
+        <inertial pos="0.00150816 -0.00832659 0.100883" mass="0.0649296" fullinertia="3.15584e-05 3.2886e-05 6.87262e-06 -3.30883e-07 2.34544e-06 -4.58096e-07"/>
+        <geom name="rmg24_left_visual" type="mesh" mesh="rmg24_finger_left" class="visual" material="rmg24_finger"/>
+        <geom name="rmg24_left_collision" type="mesh" mesh="rmg24_finger_left" class="collision" material="rmg24_collision"/>
+      </body>
+      <body name="rmg24_finger_right">
+        <joint name="rmg24_right" type="slide" axis="0 1 0" range="0 0.0325"/>
+        <inertial pos="-0.00192278 0.00837361 0.101565" mass="0.0649137" fullinertia="2.57197e-05 2.69668e-05 6.77303e-06 -2.77975e-07 -2.99514e-06 8.20485e-07"/>
+        <geom name="rmg24_right_visual" type="mesh" mesh="rmg24_finger_right" class="visual" material="rmg24_finger"/>
+        <geom name="rmg24_right_collision" type="mesh" mesh="rmg24_finger_right" class="collision" material="rmg24_collision"/>
+      </body>
+    </body>
+  </worldbody>
+
+  <tendon>
+    <fixed name="rmg24_open">
+      <joint joint="rmg24_left" coef="-1"/>
+      <joint joint="rmg24_right" coef="1"/>
+    </fixed>
+  </tendon>
+
+  <equality>
+    <joint joint1="rmg24_left" joint2="rmg24_right" polycoef="0 -1 0 0 0"/>
+  </equality>
+
+  <actuator>
+    <position name="rmg24_ctrl" tendon="rmg24_open" kp="400" dampratio="1.0"
+              forcerange="-150 150" ctrlrange="0 0.065"/>
+  </actuator>
+
+  <contact>
+    <exclude body1="rmg24_base" body2="rmg24_finger_left"/>
+    <exclude body1="rmg24_base" body2="rmg24_finger_right"/>
+  </contact>
+</mujoco>

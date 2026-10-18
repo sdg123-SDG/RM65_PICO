@@ -1,0 +1,33 @@
+<!-- Legacy four-bar gripper with gravcomp=1. Included by rm65b_legacy_gravcomp.xml. -->
+<body name="gripper_base_link" gravcomp="1" pos="0.00000000 0.00000000 0.0190000000" euler="1.5708 0 0" childclass="robot">
+  <geom name="gripper_base_link_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="gripper_base_link.STL" class="collision"/>
+  <geom name="gripper_base_link_visual" pos="0 0 0" quat="1.0 0.0 0.0 0" material="rm65_gripper" type="mesh" mesh="gripper_base_link_vis" class="visual"/>
+
+  <body name="gripper_link1" gravcomp="1" pos="0.036 -0.04 -0.019" quat="0.962425197628238 0.0 0.0 0.27154693695611287">
+    <joint name="joint_b1" type="hinge" ref="0.0" class="motor" range="-0.75 0" axis="0 0 1" damping="0.5" stiffness="3.0"/>
+    <inertial pos="0.0164149658242926 0.00898193900447147 0.00898193900447147" quat="1.0 0.0 0.0 0.0" mass="0.00647716099397792" diaginertia="2.95068972140683e-07 1.69979619476872e-06 1.45016449434989e-06"/>
+    <geom name="gripper_link1_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="gripper_link_1.STL" class="collision"/>
+    <geom name="gripper_link1_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" material="rm65_gripper" type="mesh" mesh="gripper_link_1_vis" class="visual"/>
+    <body name="gripper_link3" gravcomp="1" pos="0.042 0 0.003" quat="0.962425197628238 0 0 -0.27154693695611287">
+      <joint name="joint_13" type="hinge" ref="0.0" class="motor" range="0 1.57" axis="0 0 1" damping="0.5" stiffness="3.0"/>
+      <inertial pos="0.011366555972498 -0.0118642725662323 0.0060000073930068" quat="1.0 0.0 0.0 0.0" mass="0.0127543420299361" diaginertia="5.68538478020233e-07 1.45145776457487e-06 1.50564598220449e-06"/>
+      <geom name="gripper_link3_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="gripper_link_3.STL" class="collision"/>
+      <geom name="gripper_link3_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" material="rm65_gripper" type="mesh" mesh="gripper_link_3_vis" class="visual"/>
+    </body>
+  </body>
+
+  <body name="gripper_link2" gravcomp="1" pos="0.036 0.04 -0.019" quat="0.962425197628238 0.0 0.0 -0.27154693695611287">
+    <joint name="joint_b2" type="hinge" ref="0.0" class="motor" range="0 0.75" axis="0 0 1" damping="0.5" stiffness="3.0"/>
+    <inertial pos="0.0164149658242926 0.00898193900447147 0.00898193900447147" quat="1.0 0.0 0.0 0.0" mass="0.00647716099397792" diaginertia="2.95068972140683e-07 1.69979619476872e-06 1.45016449434989e-06"/>
+    <geom name="gripper_link2_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="gripper_link_2.STL" class="collision"/>
+    <geom name="gripper_link2_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" material="rm65_gripper" type="mesh" mesh="gripper_link_2_vis" class="visual"/>
+    <body name="gripper_link4" gravcomp="1" pos="0.042 0 0.003" quat="0.962425197628238 0 0 0.27154693695611287">
+      <joint name="joint_24" type="hinge" ref="0.0" class="motor" range="-1.57 0" axis="0 0 1" damping="0.5" stiffness="3.0"/>
+      <inertial pos="-0.011366555972498 0.0118642725662323 -0.0060000073930068" quat="1.0 0.0 0.0 0.0" mass="0.0127543420299362" diaginertia="5.68538478020238e-07 1.45145776457489e-06 1.5056459822045e-06"/>
+      <geom name="gripper_link4_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="gripper_link_4.STL" class="collision"/>
+      <geom name="gripper_link4_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" material="rm65_gripper" type="mesh" mesh="gripper_link_4_vis" class="visual"/>
+    </body>
+  </body>
+
+  <site name="gripper_base_link_site" pos="0 0 0" quat="1 0 0 0"/>
+</body>

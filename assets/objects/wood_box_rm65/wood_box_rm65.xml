@@ -1,0 +1,23 @@
+<!-- Upright wooden box sized for the RM65 gripper: square 0.05 x 0.05 m top, height 0.09 m. -->
+<mujoco model="wood_box_rm65">
+  <compiler angle="radian" autolimits="true"/>
+  <default>
+    <default class="box_static">
+      <geom contype="1" conaffinity="1" group="1" condim="3" friction="0.9 0.01 0.01"/>
+    </default>
+  </default>
+  <asset>
+    <material name="mat_box_wood" rgba="0.50 0.20 0.045 1" shininess="0.15"/>
+    <material name="mat_box_top" rgba="0.82 0.50 0.15 1" shininess="0.20"/>
+    <material name="mat_box_inlay" rgba="0.28 0.075 0.018 1"/>
+  </asset>
+  <worldbody>
+    <!-- On robot-base +X (y=0): box then container. Home pose looks down at the box. -->
+    <body name="wood_box_rm65" pos="0.22 0 0.745">
+      <freejoint name="wood_box_rm65_free"/>
+      <geom name="wood_box_body" type="box" class="box_static" material="mat_box_wood" size="0.025 0.025 0.045"/>
+      <geom name="wood_box_top" type="box" class="box_static" material="mat_box_top" pos="0 0 0.048" size="0.022 0.022 0.003"/>
+      <geom name="wood_box_top_inlay" type="box" class="box_static" material="mat_box_inlay" pos="0 0 0.052" size="0.007 0.007 0.001"/>
+    </body>
+  </worldbody>
+</mujoco>

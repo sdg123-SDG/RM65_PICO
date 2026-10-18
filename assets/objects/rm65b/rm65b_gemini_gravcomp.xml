@@ -1,0 +1,189 @@
+<!-- RM65-B + RMG24 + flange adapter + Gemini335, body gravcomp=1. -->
+<mujoco model="rm65b_gemini_gravcomp">
+  <compiler balanceinertia="true" angle="radian" autolimits="true"/>
+  <default>
+    <default class="robot">
+      <default class="motor">
+        <joint/>
+        <motor/>
+      </default>
+      <default class="visual">
+        <geom material="rm65_shell" contype="0" conaffinity="0" group="2"/>
+      </default>
+      <default class="collision">
+        <!-- group 3: arm + gripper collide with world (group 1) and non-adjacent robot
+             parts. Adjacent overlapping meshes are listed in <contact><exclude>. -->
+        <geom material="collision_material" condim="3" contype="1" conaffinity="1" priority="1" group="3"
+              solref="0.005 1" solimp="0.99 0.999 1e-05" friction="1 0.01 0.01"/>
+      </default>
+    </default>
+  </default>
+
+  <asset>
+    <texture type="2d" name="tex_rm65_shell" file="textures/rm65_shell.png"/>
+    <texture type="2d" name="tex_rm65_base" file="textures/rm65_base.png"/>
+    <texture type="2d" name="tex_rm65_joint" file="textures/rm65_joint.png"/>
+    <texture type="2d" name="tex_rm65_gripper" file="textures/rm65_gripper.png"/>
+    <material name="default_material" rgba="0.91 0.92 0.94 1"/>
+    <material name="collision_material" rgba="1.0 0.28 0.1 0.9"/>
+    <material name="visualgeom" texture="tex_rm65_shell" texuniform="false" rgba="1 1 1 1"
+              reflectance="0.08" shininess="0.18" specular="0.28" roughness="0.55" metallic="0.04"/>
+    <material name="rm65_shell" texture="tex_rm65_shell" texuniform="false" rgba="1 1 1 1"
+              reflectance="0.08" shininess="0.18" specular="0.28" roughness="0.55" metallic="0.04"/>
+    <material name="rm65_base" texture="tex_rm65_base" texuniform="false" rgba="1 1 1 1"
+              reflectance="0.08" shininess="0.18" specular="0.28" roughness="0.55" metallic="0.04"/>
+    <material name="rm65_joint" texture="tex_rm65_joint" texuniform="false" rgba="1 1 1 1"
+              reflectance="0.04" shininess="0.12" specular="0.16" roughness="0.72" metallic="0.02"/>
+    <material name="rm65_gripper" texture="tex_rm65_gripper" texuniform="false" rgba="1 1 1 1"
+              reflectance="0.05" shininess="0.14" specular="0.18" roughness="0.68" metallic="0.03"/>
+    <material name="rmg24_body" rgba="0.22 0.23 0.25 1" reflectance="0.06" shininess="0.16"
+              specular="0.22" roughness="0.62"/>
+    <material name="rmg24_finger" rgba="0.18 0.18 0.20 1" reflectance="0.05" shininess="0.12"
+              specular="0.16" roughness="0.68"/>
+    <mesh name="base_link.STL" file="meshes/base_link.STL"/>
+    <mesh name="link_1.STL" file="meshes/link_1.STL"/>
+    <mesh name="link_2.STL" file="meshes/link_2.STL"/>
+    <mesh name="link_3.STL" file="meshes/link_3.STL"/>
+    <mesh name="link_4.STL" file="meshes/link_4.STL"/>
+    <mesh name="link_5.STL" file="meshes/link_5.STL"/>
+    <mesh name="link_6.STL" file="meshes/link_6.STL"/>
+    <mesh name="rmg24_base_mesh" file="../rmg24/meshes/base.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="rmg24_finger_left_mesh" file="../rmg24/meshes/finger_left.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="rmg24_finger_right_mesh" file="../rmg24/meshes/finger_right.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="base_link_vis" file="meshes/visual/base_link.obj"/>
+    <mesh name="link_1_vis" file="meshes/visual/link_1.obj"/>
+    <mesh name="link_2_vis" file="meshes/visual/link_2.obj"/>
+    <mesh name="link_3_vis" file="meshes/visual/link_3.obj"/>
+    <mesh name="link_4_vis" file="meshes/visual/link_4.obj"/>
+    <mesh name="link_5_vis" file="meshes/visual/link_5.obj"/>
+    <mesh name="link_6_vis" file="meshes/visual/link_6.obj"/>
+    <model name="gemini335_adapter" file="../gemini335_adapter/gemini335_adapter.xml"/>
+    <model name="gemini335" file="../gemini335/gemini335.xml"/>
+  </asset>
+
+  <worldbody>
+    <body name="base_link" childclass="robot">
+      <inertial pos="-0.00049987 -5.2709e-05 0.060019" mass="1.862" fullinertia="0.0017232 0.0017051 0.00090158 -3.1058e-06 3.7924e-05 -1.3691e-06"/>
+      <geom name="base_link_collision" type="mesh" mesh="base_link.STL" class="collision"/>
+      <geom name="base_link_visual" type="mesh" mesh="base_link_vis" class="visual" material="rm65_base"/>
+      <!-- Robot-frame triad at the URDF/MJCF origin: X red, Y green, Z blue. -->
+      <geom name="base_axis_x" type="cylinder" fromto="0 0 0 0.08 0 0" size="0.0025"
+            rgba="1 0.12 0.12 1" contype="0" conaffinity="0" group="2" density="0"/>
+      <geom name="base_axis_x_tip" type="cylinder" fromto="0.08 0 0 0.11 0 0" size="0.0055"
+            rgba="1 0.12 0.12 1" contype="0" conaffinity="0" group="2" density="0"/>
+      <geom name="base_axis_y" type="cylinder" fromto="0 0 0 0 0.08 0" size="0.0025"
+            rgba="0.15 0.85 0.2 1" contype="0" conaffinity="0" group="2" density="0"/>
+      <geom name="base_axis_y_tip" type="cylinder" fromto="0 0.08 0 0 0.11 0" size="0.0055"
+            rgba="0.15 0.85 0.2 1" contype="0" conaffinity="0" group="2" density="0"/>
+      <geom name="base_axis_z" type="cylinder" fromto="0 0 0 0 0 0.08" size="0.0025"
+            rgba="0.2 0.4 1 1" contype="0" conaffinity="0" group="2" density="0"/>
+      <geom name="base_axis_z_tip" type="cylinder" fromto="0 0 0.08 0 0 0.11" size="0.0055"
+            rgba="0.2 0.4 1 1" contype="0" conaffinity="0" group="2" density="0"/>
+      <body name="link_1" gravcomp="1" pos="0 0 0.2405">
+        <!-- armature = n^2 J_m at the output (WHJ60 100:1 J1-2, WHJ30 80:1 J3, WHJ10 80:1 J4-6). -->
+        <joint name="joint_1" type="hinge" ref="0.0" class="motor" range="-3.106686 3.106686" axis="0 0 1" damping="0.08" armature="0.551" frictionloss="0.05"/>
+        <inertial pos="0.000491 0.007803 -0.010744" mass="1.51" fullinertia="0.002662222 0.002331681 0.001663714 -2.684478e-05 -1.378171e-05 -7.866650e-05"/>
+        <geom name="link_1_collision" type="mesh" mesh="link_1.STL" class="collision"/>
+        <geom name="link_1_visual" type="mesh" mesh="link_1_vis" class="visual" material="rm65_shell"/>
+        <body name="link_2" gravcomp="1" pos="0 0 0" quat="0.4999981633974483 0.49999999999662686 -0.49999999999662686 0.5000018366025516">
+          <joint name="joint_2" type="hinge" ref="0.0" class="motor" range="-2.268928 2.268928" axis="0 0 1" damping="0.08" armature="0.551" frictionloss="0.05"/>
+          <inertial pos="0.183722 0.000103 -0.001665" mass="1.653" fullinertia="0.001706953 0.014715152 0.014241181 -6.990676e-06 0.001809262 6.223519e-06"/>
+          <geom name="link_2_collision" type="mesh" mesh="link_2.STL" class="collision"/>
+          <geom name="link_2_visual" type="mesh" mesh="link_2_vis" class="visual" material="rm65_shell"/>
+          <body name="link_3" gravcomp="1" pos="0.256 0 0" quat="0.7071054825112363 0.0 0.0 0.7071080798594735">
+            <joint name="joint_3" type="hinge" ref="0.0" class="motor" range="-2.356194 2.356194" axis="0 0 1" damping="0.08" armature="0.191" frictionloss="0.05"/>
+            <inertial pos="0.000029 -0.090105 0.004039" mass="0.726" fullinertia="0.001353711 0.000360028 0.001334428 1.096929e-06 -2.289629e-07 -0.000219765"/>
+            <geom name="link_3_collision" type="mesh" mesh="link_3.STL" class="collision"/>
+            <geom name="link_3_visual" type="mesh" mesh="link_3_vis" class="visual" material="rm65_shell"/>
+            <body name="link_4" gravcomp="1" pos="0 -0.21 0" quat="0.7071054825112363 0.7071080798594735 0.0 0.0">
+              <joint name="joint_4" type="hinge" ref="0.0" class="motor" range="-3.106686 3.106686" axis="0 0 1" damping="0.08" armature="0.072" frictionloss="0.05"/>
+              <inertial pos="0.000007 -0.009486 -0.008041" mass="0.671" fullinertia="0.000690249 0.000552850 0.000425849 -8.655557e-07 -6.927686e-07 1.639682e-05"/>
+              <geom name="link_4_collision" type="mesh" mesh="link_4.STL" class="collision"/>
+              <geom name="link_4_visual" type="mesh" mesh="link_4_vis" class="visual" material="rm65_shell"/>
+              <body name="link_5" gravcomp="1" pos="0 0 0" quat="0.7071054825112363 -0.7071080798594735 0.0 0.0">
+                <joint name="joint_5" type="hinge" ref="0.0" class="motor" range="-2.234021 2.234021" axis="0 0 1" damping="0.08" armature="0.072" frictionloss="0.05"/>
+                <inertial pos="0.000032 -0.083769 0.002326" mass="0.647" fullinertia="0.000831946 0.000281764 0.000819611 9.306466e-07 -2.558425e-07 -0.000111831"/>
+                <geom name="link_5_collision" type="mesh" mesh="link_5.STL" class="collision"/>
+                <geom name="link_5_visual" type="mesh" mesh="link_5_vis" class="visual" material="rm65_shell"/>
+                <body name="link_6" gravcomp="1" pos="0 -0.144 0" quat="0.7071054825112363 0.7071080798594735 0.0 0.0">
+                  <joint name="joint_6" type="hinge" ref="0.0" class="motor" range="-6.283185 6.283185" axis="0 0 1" damping="0.08" armature="0.072" frictionloss="0.05"/>
+                  <inertial pos="-0.000506 0.000255 -0.010801" mass="0.107" fullinertia="3.842825e-05 3.490981e-05 6.031565e-05 -3.149806e-06 -1.142123e-07 9.329472e-08"/>
+                  <geom name="link_6_collision" type="mesh" mesh="link_6.STL" class="collision"/>
+                  <geom name="link_6_visual" type="mesh" mesh="link_6_vis" class="visual" material="rm65_shell"/>
+                  <!-- IK / xbox ee 法兰系（link_6，不是 MJCF flange 子体）：X 红=左杆前，Y 绿=左杆右，Z 蓝=RT。 -->
+                  <geom name="ee_axis_x" type="cylinder" fromto="0 0 0 0.08 0 0" size="0.0025"
+                        rgba="1 0.12 0.12 1" contype="0" conaffinity="0" group="2" density="0"/>
+                  <geom name="ee_axis_x_tip" type="cylinder" fromto="0.08 0 0 0.11 0 0" size="0.0055"
+                        rgba="1 0.12 0.12 1" contype="0" conaffinity="0" group="2" density="0"/>
+                  <geom name="ee_axis_y" type="cylinder" fromto="0 0 0 0 0.08 0" size="0.0025"
+                        rgba="0.15 0.85 0.2 1" contype="0" conaffinity="0" group="2" density="0"/>
+                  <geom name="ee_axis_y_tip" type="cylinder" fromto="0 0.08 0 0 0.11 0" size="0.0055"
+                        rgba="0.15 0.85 0.2 1" contype="0" conaffinity="0" group="2" density="0"/>
+                  <geom name="ee_axis_z" type="cylinder" fromto="0 0 0 0 0 0.08" size="0.0025"
+                        rgba="0.2 0.4 1 1" contype="0" conaffinity="0" group="2" density="0"/>
+                  <geom name="ee_axis_z_tip" type="cylinder" fromto="0 0 0.08 0 0 0.11" size="0.0055"
+                        rgba="0.2 0.4 1 1" contype="0" conaffinity="0" group="2" density="0"/>
+                  <body name="flange" gravcomp="1" pos="0 0 0" childclass="robot">
+                    <inertial pos="2.83035e-05 -0.000354205 0.0425726" mass="0.544157" fullinertia="0.000622062 0.000454583 0.000417435 2.35624e-06 -1.31719e-06 -3.71671e-06"/>
+                    <site name="flange_site" pos="0 0 0" size="0.001" rgba="0 0 0 0" group="4"/>
+                    <attach model="gemini335_adapter" body="adapter" prefix=""/>
+                    <body name="gemini335_mount" gravcomp="1" pos="0.080 0.025 0.032"
+                          quat="0.70710678 0 -0.70710678 0">
+                      <attach model="gemini335" body="gemini335" prefix=""/>
+                    </body>
+                    <include file="gripper_rmg24_gravcomp.xml"/>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <site name="base_link_site" pos="0 0 0"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <position name="joint_1_ctrl" joint="joint_1" kp="140" dampratio="1.0" forcerange="-60 60" ctrlrange="-3.106686 3.106686"/>
+    <position name="joint_2_ctrl" joint="joint_2" kp="140" dampratio="1.0" forcerange="-60 60" ctrlrange="-2.268928 2.268928"/>
+    <position name="joint_3_ctrl" joint="joint_3" kp="120" dampratio="1.0" forcerange="-30 30" ctrlrange="-2.356194 2.356194"/>
+    <position name="joint_4_ctrl" joint="joint_4" kp="80" dampratio="1.0" forcerange="-10 10" ctrlrange="-3.106686 3.106686"/>
+    <position name="joint_5_ctrl" joint="joint_5" kp="70" dampratio="1.0" forcerange="-10 10" ctrlrange="-2.234021 2.234021"/>
+    <position name="joint_6_ctrl" joint="joint_6" kp="60" dampratio="1.0" forcerange="-10 10" ctrlrange="-6.283185 6.283185"/>
+
+    <position name="rmg24_ctrl" tendon="rmg24_open" kp="400" dampratio="1.0"
+              forcerange="-150 150" ctrlrange="0 0.065"/>
+  </actuator>
+
+  <tendon>
+    <fixed name="rmg24_open">
+      <joint joint="rmg24_left" coef="-1"/>
+      <joint joint="rmg24_right" coef="1"/>
+    </fixed>
+  </tendon>
+
+  <equality>
+    <joint joint1="rmg24_left" joint2="rmg24_right" polycoef="0 -1 0 0 0"/>
+  </equality>
+
+  <contact>
+    <exclude body1="base_link" body2="link_1"/>
+    <exclude body1="link_1" body2="link_2"/>
+    <exclude body1="link_2" body2="link_3"/>
+    <exclude body1="link_3" body2="link_4"/>
+    <exclude body1="link_4" body2="link_5"/>
+    <exclude body1="link_5" body2="link_6"/>
+    <exclude body1="link_6" body2="flange"/>
+    <exclude body1="flange" body2="rmg24_finger_left"/>
+    <exclude body1="flange" body2="rmg24_finger_right"/>
+    <exclude body1="flange" body2="adapter"/>
+    <exclude body1="flange" body2="gemini335_mount"/>
+    <exclude body1="flange" body2="gemini335"/>
+    <exclude body1="adapter" body2="gemini335_mount"/>
+    <exclude body1="adapter" body2="gemini335"/>
+    <exclude body1="adapter" body2="rmg24_finger_left"/>
+    <exclude body1="adapter" body2="rmg24_finger_right"/>
+    <exclude body1="gemini335" body2="rmg24_finger_left"/>
+    <exclude body1="gemini335" body2="rmg24_finger_right"/>
+  </contact>
+</mujoco>

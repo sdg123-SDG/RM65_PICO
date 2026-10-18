@@ -1,0 +1,39 @@
+<!-- 0.70 m high table with a continuous gray top and contrasting edge trim. -->
+<mujoco model="table">
+  <compiler angle="radian" autolimits="true"/>
+  <default>
+    <default class="table_static">
+      <geom contype="1" conaffinity="1" group="1" condim="3" friction="1.0 0.005 0.0001"/>
+    </default>
+  </default>
+  <asset>
+    <material name="mat_table_top" rgba="0.52 0.53 0.55 1" shininess="0.18"/>
+    <material name="mat_table_inset" rgba="0.68 0.69 0.71 1" shininess="0.22"/>
+    <material name="mat_table_edge" rgba="0.28 0.29 0.31 1"/>
+    <material name="mat_table_leg" rgba="0.08 0.09 0.11 1" shininess="0.30"/>
+  </asset>
+  <worldbody>
+    <body name="table">
+      <geom name="table_top" type="box" class="table_static"
+            material="mat_table_top" size="0.75 0.55 0.05" pos="0 0 0.65"/>
+      <geom name="table_inset" type="box" class="table_static" contype="0" conaffinity="0"
+            material="mat_table_inset" size="0.58 0.40 0.001" pos="0 0 0.701"/>
+      <geom name="table_front_trim" type="box" class="table_static"
+            material="mat_table_edge" size="0.75 0.018 0.025" pos="0 -0.532 0.625"/>
+      <geom name="table_back_trim" type="box" class="table_static"
+            material="mat_table_edge" size="0.75 0.018 0.025" pos="0 0.532 0.625"/>
+      <geom name="table_left_trim" type="box" class="table_static"
+            material="mat_table_edge" size="0.018 0.514 0.025" pos="-0.732 0 0.625"/>
+      <geom name="table_right_trim" type="box" class="table_static"
+            material="mat_table_edge" size="0.018 0.514 0.025" pos="0.732 0 0.625"/>
+      <geom name="table_leg_front_left" type="box" class="table_static"
+            material="mat_table_leg" size="0.06 0.06 0.325" pos="-0.62 -0.43 0.325"/>
+      <geom name="table_leg_front_right" type="box" class="table_static"
+            material="mat_table_leg" size="0.06 0.06 0.325" pos="0.62 -0.43 0.325"/>
+      <geom name="table_leg_back_left" type="box" class="table_static"
+            material="mat_table_leg" size="0.06 0.06 0.325" pos="-0.62 0.43 0.325"/>
+      <geom name="table_leg_back_right" type="box" class="table_static"
+            material="mat_table_leg" size="0.06 0.06 0.325" pos="0.62 0.43 0.325"/>
+    </body>
+  </worldbody>
+</mujoco>

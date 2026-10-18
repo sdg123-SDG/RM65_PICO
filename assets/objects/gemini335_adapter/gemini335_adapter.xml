@@ -1,0 +1,46 @@
+<!-- RM65 flange → Gemini 335 side bracket (eye-in-hand).
+     Same L-plate as the RealMan D435 photo: φ49 mm flange, arm along +X.
+     Site camera_mount = Gemini body origin (ROS camera_link, optical +X). -->
+<mujoco model="gemini335_adapter">
+  <compiler angle="radian" autolimits="true"/>
+  <default>
+    <default class="adapter">
+      <geom condim="3" friction="1 0.01 0.01"/>
+      <default class="visual">
+        <geom contype="0" conaffinity="0" group="2" mass="0"/>
+      </default>
+      <default class="collision">
+        <geom contype="1" conaffinity="1" group="3" priority="1"
+              solref="0.005 1" solimp="0.99 0.999 1e-05"/>
+      </default>
+    </default>
+  </default>
+
+  <asset>
+    <material name="adapter_alum" rgba="0.78 0.80 0.83 1"
+              reflectance="0.12" shininess="0.22" specular="0.28"/>
+  </asset>
+
+  <worldbody>
+    <body name="adapter" childclass="adapter">
+      <inertial pos="0.032 0 0.004" mass="0.042" diaginertia="4e-05 5e-05 8e-05"/>
+      <geom name="adapter_flange_visual" type="cylinder" class="visual"
+            material="adapter_alum" size="0.028 0.003" pos="0 0 0.003"/>
+      <geom name="adapter_flange_collision" type="cylinder" class="collision"
+            size="0.028 0.003" pos="0 0 0.003"/>
+      <geom name="adapter_arm_visual" type="box" class="visual"
+            material="adapter_alum" size="0.036 0.012 0.003" pos="0.040 0 0.003"/>
+      <geom name="adapter_arm_collision" type="box" class="collision"
+            size="0.036 0.012 0.003" pos="0.040 0 0.003"/>
+      <geom name="adapter_pad_visual" type="box" class="visual"
+            material="adapter_alum" size="0.016 0.018 0.003" pos="0.080 0 0.003"/>
+      <geom name="adapter_pad_collision" type="box" class="collision"
+            size="0.016 0.018 0.003" pos="0.080 0 0.003"/>
+      <!-- Housing AABB center on the pad (geom offset -0.01587 -0.025 -0.0125).
+           Optical +X -> flange +Z. -->
+      <site name="camera_mount" pos="0.080 0.025 0.032"
+            quat="0.70710678 0 -0.70710678 0"
+            size="0.004" rgba="0.2 0.8 1 1" group="5"/>
+    </body>
+  </worldbody>
+</mujoco>

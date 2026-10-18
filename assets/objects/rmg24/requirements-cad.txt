@@ -1,0 +1,7 @@
+# CAD export for RMG24 (conda env: vdo-cad, Python 3.12)
+# Recreate: conda activate vdo-cad && pip install -r requirements-cad.txt
+# or: uv pip install --python "$(which python)" -r requirements-cad.txt
+cadquery==2.8.0
+trimesh==5.0.0
+numpy==2.5.2
+mujoco==3.12.0

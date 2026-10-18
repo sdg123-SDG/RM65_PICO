@@ -1,0 +1,9 @@
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.xml text eol=lf
+*.png binary
+*.stl binary
+*.STL binary

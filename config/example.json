@@ -1,0 +1,16 @@
+{
+  "service_dir": "software/XRoboToolkit-PC-Service",
+  "scene": "assets/scene/custom_rm65_box/scene_gemini_gravcomp.xml",
+  "tcp_offset_m": [0.0, 0.0, 0.137],
+  "teleop": {
+    "frame": "robot",
+    "mode": "position",
+    "scale": 1.0,
+    "speed": 0.06,
+    "yaw_deg": 0.0
+  },
+  "jog": {
+    "frame": "robot",
+    "speed": 0.06
+  }
+}

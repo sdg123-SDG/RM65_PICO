@@ -1,0 +1,17 @@
+<!-- RMG24 under flange, gravcomp=1. Official control is one opening, not independent fingers. -->
+<body>
+  <geom name="rmg24_base_visual" type="mesh" mesh="rmg24_base_mesh" class="visual" material="rmg24_body"/>
+  <geom name="rmg24_base_collision" type="mesh" mesh="rmg24_base_mesh" class="collision"/>
+  <body name="rmg24_finger_left" gravcomp="1">
+    <joint name="rmg24_left" type="slide" axis="0 1 0" range="-0.0325 0" damping="0.5" armature="0.0002"/>
+    <inertial pos="0.00150816 -0.00832659 0.100883" mass="0.0649296" fullinertia="3.15584e-05 3.2886e-05 6.87262e-06 -3.30883e-07 2.34544e-06 -4.58096e-07"/>
+    <geom name="rmg24_left_visual" type="mesh" mesh="rmg24_finger_left_mesh" class="visual" material="rmg24_finger"/>
+    <geom name="rmg24_left_collision" type="mesh" mesh="rmg24_finger_left_mesh" class="collision"/>
+  </body>
+  <body name="rmg24_finger_right" gravcomp="1">
+    <joint name="rmg24_right" type="slide" axis="0 1 0" range="0 0.0325" damping="0.5" armature="0.0002"/>
+    <inertial pos="-0.00192278 0.00837361 0.101565" mass="0.0649137" fullinertia="2.57197e-05 2.69668e-05 6.77303e-06 -2.77975e-07 -2.99514e-06 8.20485e-07"/>
+    <geom name="rmg24_right_visual" type="mesh" mesh="rmg24_finger_right_mesh" class="visual" material="rmg24_finger"/>
+    <geom name="rmg24_right_collision" type="mesh" mesh="rmg24_finger_right_mesh" class="collision"/>
+  </body>
+</body>

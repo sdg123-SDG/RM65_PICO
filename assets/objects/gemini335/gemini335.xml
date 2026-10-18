@@ -1,0 +1,48 @@
+<!-- Orbbec Gemini 335 (housing shared with Gemini 2 / 336).
+     Meshes: OrbbecSDK_ROS2 orbbec_description (Apache-2.0), meters.
+     Body origin = ROS camera_link / depth / left-IR frame.
+     Visual offset matches official URDF visual origin.
+     MuJoCo cameras look along -Z; quat maps that to ROS +X (optical forward). -->
+<mujoco model="gemini335">
+  <compiler meshdir="meshes" fitaabb="true" angle="radian" balanceinertia="true"/>
+
+  <visual>
+    <global azimuth="90" elevation="-20"/>
+  </visual>
+
+  <default>
+    <default class="gemini335">
+      <default class="visual">
+        <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+      </default>
+      <default class="collision">
+        <geom group="3" type="mesh"/>
+      </default>
+    </default>
+  </default>
+
+  <asset>
+    <material class="gemini335" name="gemini_body" rgba="0.12 0.12 0.13 1"
+              specular="0.2" shininess="0.15" roughness="0.55"/>
+    <mesh file="camera_link.STL"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+    <body name="gemini335" childclass="gemini335">
+      <geom name="gemini335_visual" mesh="camera_link" material="gemini_body"
+            class="visual" pos="-0.01587 -0.025 -0.0125" mass="0"/>
+      <geom name="gemini335_collision" mesh="camera_link" class="collision"
+            pos="-0.01587 -0.025 -0.0125" mass="0.097"/>
+
+      <camera name="gemini335_rgb" pos="0.001663 -0.014005 0.000005"
+              quat="0.5 0.5 -0.5 -0.5" fovy="55"/>
+      <camera name="gemini335_depth" pos="0 0 0"
+              quat="0.5 0.5 -0.5 -0.5" fovy="65"/>
+      <camera name="gemini335_ir_left" pos="0 0 0"
+              quat="0.5 0.5 -0.5 -0.5" fovy="65"/>
+      <camera name="gemini335_ir_right" pos="0 -0.05 0"
+              quat="0.5 0.5 -0.5 -0.5" fovy="65"/>
+    </body>
+  </worldbody>
+</mujoco>

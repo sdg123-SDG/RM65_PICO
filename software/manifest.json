@@ -1,0 +1,25 @@
+{
+  "packages": [
+    {
+      "name": "XRoboToolkit Windows PC Service v1.0.0",
+      "file": "XRoboToolkit-PC-Service.win.zip",
+      "url": "https://github.com/XR-Robotics/XRoboToolkit-PC-Service/releases/download/v1.0.0/XRoboToolkit-PC-Service.win.zip",
+      "sha256": "b3dc585f240aa5defe9b380189f9f11b482192edda1fa6c918c3d98e0ed2e123",
+      "kind": "service"
+    },
+    {
+      "name": "XRoboToolkit PICO 1.1.1",
+      "file": "XRoboToolkit-PICO-1.1.1.apk",
+      "url": "https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases/download/v1.1.1/XRoboToolkit-PICO-1.1.1.apk",
+      "sha256": "6b2bb282405673d24abcb1980e3478b8f1052e90f7207b1f24cc56a59f8d8261",
+      "kind": "apk"
+    },
+    {
+      "name": "Android Platform Tools 37.0.1 Windows",
+      "file": "platform-tools_r37.0.1-win.zip",
+      "url": "https://dl.google.com/android/repository/platform-tools_r37.0.1-win.zip",
+      "sha256": "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99",
+      "kind": "adb"
+    }
+  ]
+}
