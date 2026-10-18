@@ -47,6 +47,6 @@ MISSING Head 表示收到手柄但缺少头部朝向。扳机能控制夹爪，�
 | XML/mesh 缺失 | 保持整个 assets 相对结构，不只复制 scene.xml |
 | 没窗口 | doctor --offline 检查模型，再查显卡/OpenGL 和桌面会话 |
 | 已有服务/客户端 | 正常关闭原窗口；同路径服务可用 -ReuseService 接管 |
-| ADB unauthorized | 在头显接受 USB 调试授权 |
+| 可选 APK 安装时 ADB unauthorized | 在头显接受 USB 调试授权；此项与运行时局域网遥操无关 |
 
 服务残留时，在任务管理器确认完整路径和 PID，只结束对应实例。

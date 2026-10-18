@@ -2,13 +2,15 @@
 
 用 **PICO 4 Ultra 左手柄**控制桌面 RM65-B / RMG24 的 **MuJoCo 仿真**。包含机械臂、桌子、立式木块、接收盒和 Gemini335 相机模型。
 
+**遥操通过局域网传输：PICO 连接 Wi-Fi，电脑与它在同一可互访网络，通过电脑 IP 连接 XRoboToolkit PC Service。运行时无需 USB 连接。**
+
 提供遥操、摇杆移动、场景预览、输入诊断、录制和离线回放。安装目录可放在任意盘符；启动器按自身位置寻找代码、模型、虚拟环境和软件，自动显示电脑当前网络 IPv4，不绑定作者电脑的路径或 IP。
 
 **当前范围：Windows x64 + MuJoCo。相机是场景模型，不包含真实相机视频采集；本仓库不包含真机运动入口。**
 
 ## 第一次使用
 
-1. 安装 [Python 3.10–3.12 x64](https://www.python.org/downloads/windows/)（建议 3.11），准备 PICO 4 Ultra，开启头显开发者模式。
+1. 安装 [Python 3.10–3.12 x64](https://www.python.org/downloads/windows/)（建议 3.11），准备 PICO 4 Ultra，并让电脑与头显连接同一可互访局域网。
 2. GitHub **Code → Download ZIP** 并解压，或执行：
 
    ~~~powershell
@@ -17,12 +19,7 @@
    ~~~
 
 3. 双击 install.bat。它建立 .venv、安装固定版本 Python 依赖、下载并校验 PC Service、PICO APK 和 ADB。
-4. USB 连接头显，戴上并接受 USB 调试授权，在仓库目录执行：
-
-   ~~~powershell
-   .\software\platform-tools\adb.exe devices
-   .\software\platform-tools\adb.exe install -r -g .\software\XRoboToolkit-PICO-1.1.1.apk
-   ~~~
+4. 若头显已安装 XRoboToolkit，直接跳过。否则用**头显浏览器**打开[官方 APK 发布页](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases/tag/v1.1.1)，下载 XRoboToolkit-PICO-1.1.1.apk 并安装；按头显提示允许应用安装。另有可选的 USB/ADB 安装方式，见[安装说明](docs/INSTALL.md)，仅用于装应用。
 
 5. 双击 start.bat，选 **T**（遥操）或 **J**（摇杆）。一次只开一个模式。
 6. 电脑与头显连接同一局域网。头显打开 XRoboToolkit，选择启动窗口显示的电脑物理网络 IPv4，等待 **WORKING**，打开 **Head Tracking、Controller Tracking、Send**。

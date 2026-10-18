@@ -2,10 +2,10 @@
 
 ## 环境
 
-- Windows 10/11 x64；PICO 4 Ultra、左手柄。
+- Windows 10/11 x64；PICO 4 Ultra、左手柄。遥操使用局域网连接，运行时不需要 USB 线。
 - CPython 3.10–3.12 x64，建议 3.11。安装器寻找 py、python 和用户目录中的标准 Python 安装；不依赖特定盘符。缺少 Python 时需先从[官方页面](https://www.python.org/downloads/windows/)安装。
 - 电脑与头显在可互访的局域网；首次下载需访问 GitHub、PyPI、Google Android 下载站。
-- USB 数据线；头显开启开发者模式并接受 USB 调试授权。
+- 头显已安装 XRoboToolkit，或能用头显浏览器下载安装 APK。只有选择可选的 ADB 安装方式时，才需要 USB 数据线、开发者模式与 USB 调试授权。
 
 本 XRoboToolkit 链路不要求 SteamVR、OpenXR、PICO Connect、PICO Streaming Assistant。
 
@@ -27,7 +27,11 @@
 
 ## 头显安装
 
-USB 连接后戴上头显，允许 USB 调试：
+头显已安装 XRoboToolkit 时，跳过本节。建议直接用**头显浏览器**打开[官方发布页](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases/tag/v1.1.1)，下载 XRoboToolkit-PICO-1.1.1.apk，按头显提示允许安装并打开。应用通常在“未知来源”。
+
+### 可选：用 USB/ADB 安装 APK
+
+此方式只负责将 APK 安装到头显，不是遥操数据链路。需要头显开启开发者模式；USB 连接后戴上头显，允许 USB 调试：
 
 ~~~powershell
 .\software\platform-tools\adb.exe devices
@@ -39,11 +43,11 @@ USB 连接后戴上头显，允许 USB 调试：
 .\software\platform-tools\adb.exe install -r -g .\software\XRoboToolkit-PICO-1.1.1.apk
 ~~~
 
-也可用头显浏览器从[官方发布页](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases/tag/v1.1.1)下载安装。应用通常在“未知来源”。
+安装完成后即可拔掉 USB 线，后续按下面的局域网方式连接。
 
-## 第一次连接
+## 局域网连接与遥操
 
-1. 双击 start.bat 选 T。窗口显示当前带默认网关的网卡 IPv4；选择与头显同网段的物理 Wi-Fi/以太网，忽略 VMware、VPN、127.0.0.1。
+1. PICO 连接 Wi-Fi，电脑连接同一可互访局域网（Wi-Fi 或以太网均可）。双击 start.bat 选 T。窗口显示当前带默认网关的网卡 IPv4；选择与头显网络可互访的物理 Wi-Fi/以太网地址，忽略 VMware、VPN、127.0.0.1。
 2. Windows 防火墙出现联网提示时，对当前可信局域网允许 PC Service。
 3. 在头显 XRoboToolkit 选择电脑，等待 WORKING。服务重启后应重新选择电脑。
 4. 开启 Head Tracking、Controller Tracking、Send；按[操作手册](OPERATIONS.md)设置前方，小幅试动。

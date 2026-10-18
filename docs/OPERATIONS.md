@@ -1,5 +1,7 @@
 # 操作手册
 
+遥操链路为：PICO 左手柄 → 头显 XRoboToolkit → 局域网 → 电脑 PC Service → MuJoCo。头显通过电脑 IP 连接，运行时无需 USB；USB/ADB 仅是首次安装 APK 的可选方式。
+
 ## 开始与退出
 
 双击 start.bat：T=遥操、J=摇杆、S=仅服务、D=输入诊断、V=场景。一次只运行一个模式；遥操与诊断不要同时开。
