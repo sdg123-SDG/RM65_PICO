@@ -48,9 +48,12 @@ if ($services.Count -eq 0) {
 }
 $forwardArgument = '--view-forward-axis=' + $Forward.ToLowerInvariant()
 if (-not $PSBoundParameters.ContainsKey('RotWeight')) { $RotWeight = if ($BaseYaw -eq 'hand') { 0.3 } else { 1.0 } }
-# hand mode: joint-limit clamp is built in; lower start-pose pull and drag the anchor past 5 cm overshoot
+# hand mode: joint-limit clamp is built in; lower start-pose pull; keep the IK target in a
+# reachable shell (>=25 cm from the base axis, <=68 cm from the shoulder). No anchor drag:
+# its accumulated offset made the arm overshoot sideways and forward.
 $baseYawArguments = if ($BaseYaw -eq 'hand') {
-    @('--base-yaw-mode=hand-azimuth', '--ik-home-weight=0.002', '--workspace-drag-m=0.05')
+    @('--base-yaw-mode=hand-azimuth', '--ik-home-weight=0.002',
+      '--workspace-min-radius-m=0.25', '--workspace-max-reach-m=0.68')
 } else { @('--base-yaw-mode=ik') }
 $transportLogs = Join-Path $trialDir 'logs\real\transport_logs'
 $knownLogs = @{}

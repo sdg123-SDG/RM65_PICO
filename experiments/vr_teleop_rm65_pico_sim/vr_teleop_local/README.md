@@ -8,6 +8,7 @@
 - `teleop_sim.patch`：`example/teleop_sim.py`、`util/ik.py`、`util/wrist_tracker.py` 相对上游的差异
 - `files/teleop_sim.py.current`：修改后的完整文件
 - `files/config/rm65_current_pose.json`、`files/util/xrtoolkit_input.py`、`files/util/base_yaw.py`：上游没有的新增文件
+- `replay_real_runs.py` + `run_225618_s2.txt` / `run_225618_s3.txt`：22:56 实机两段跟随的回放（拖拽 vs 工作空间限制）
 - `replay_real_run.py` + `run_223720_residuals.txt`：用 2026-11-06 22:37 实机手部轨迹回放 IK 的对比脚本
 - `offline_compare_base_yaw.py`：底座方位映射（方案 B）与原 IK 的离线对比脚本
 

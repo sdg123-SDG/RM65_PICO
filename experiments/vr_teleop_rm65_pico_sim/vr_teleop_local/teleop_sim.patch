@@ -1,5 +1,5 @@
 diff --git a/example/teleop_sim.py b/example/teleop_sim.py
-index 142f944..28c3154 100644
+index 142f944..055d6a4 100644
 --- a/example/teleop_sim.py
 +++ b/example/teleop_sim.py
 @@ -13,6 +13,7 @@ Supports multiple robot configurations via --robot:
@@ -316,7 +316,7 @@ index 142f944..28c3154 100644
              else:
                  # --- Quest 3 path (unchanged) ---
                  packet = recv_latest_packet(sock)
-@@ -857,7 +1081,39 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+@@ -857,7 +1081,48 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
                  last_log_time = now
  
              # --- IK for arm ---
@@ -324,13 +324,22 @@ index 142f944..28c3154 100644
 +            ik_accepted = False
 +            run_ik = tracker.initialized and (xrt_input is None or xrt_clutch_active)
 +            if run_ik and base_yaw is not None and xrt_clutch_active:
++                ik_target = tracker.target_position
++                if args.workspace_max_reach_m > 0.0 or args.workspace_min_radius_m > 0.0:
++                    # 只截住目标、不改跟随零点，避免偏移累积导致左右过头、前冲退不回。
++                    ik_target = base_yaw.clamp_workspace(
++                        ik_target,
++                        min_radius_m=args.workspace_min_radius_m,
++                        max_reach_m=args.workspace_max_reach_m if args.workspace_max_reach_m > 0.0 else np.inf,
++                        shoulder_height_m=0.0,
++                    )
 +                q_init = data.qpos[: model.nq].copy()
-+                q_init[base_yaw.qpos_index] = base_yaw.target(tracker.target_position)
++                q_init[base_yaw.qpos_index] = base_yaw.target(ik_target)
 +                q_sol_new = solve_pose_ik(
 +                    model,
 +                    ik_data,
 +                    site_id,
-+                    tracker.target_position,
++                    ik_target,
 +                    tracker.target_quaternion,
 +                    q_init,
 +                    rot_weight=args.rot_weight,
@@ -349,7 +358,7 @@ index 142f944..28c3154 100644
 +                    # 手超出可达范围时，把跟随零点一起拖走，手回来时机械臂立即跟回。
 +                    ik_data.qpos[: model.nq] = q_sol
 +                    mujoco.mj_kinematics(model, ik_data)
-+                    excess = tracker.target_position - ik_data.site_xpos[site_id]
++                    excess = ik_target - ik_data.site_xpos[site_id]
 +                    excess_norm = float(np.linalg.norm(excess))
 +                    if excess_norm > args.workspace_drag_m:
 +                        tracker.shift_target(-excess * (1.0 - args.workspace_drag_m / excess_norm))
@@ -357,7 +366,7 @@ index 142f944..28c3154 100644
                  q_sol_new = solve_pose_ik(
                      model,
                      ik_data,
-@@ -872,8 +1128,18 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+@@ -872,8 +1137,18 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
                      skip_tail_joints=config.get("skip_tail_joints", 0),
                  )
                  # 丢弃跳变解：任意关节变化超过 30° 则保持上一帧
@@ -377,7 +386,7 @@ index 142f944..28c3154 100644
  
              # --- Apply arm controls ---
              if tracker.initialized:
-@@ -907,6 +1173,30 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+@@ -907,6 +1182,30 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
                      if latest_gripper_cmd is not None and gripper_actuator_id != -1:
                          data.ctrl[gripper_actuator_id] = latest_gripper_cmd
  
@@ -408,7 +417,7 @@ index 142f944..28c3154 100644
              # --- Step simulation ---
              mujoco.mj_step(model, data)
              vis.sync()
-@@ -915,7 +1205,6 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+@@ -915,7 +1214,6 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
              if sleep_time > 0:
                  time.sleep(sleep_time)
  
@@ -416,7 +425,7 @@ index 142f944..28c3154 100644
  # ---------------------------------------------------------------------------
  # Aloha bimanual simulation loop
  # ---------------------------------------------------------------------------
-@@ -1552,11 +1841,31 @@ def main() -> None:
+@@ -1552,11 +1850,45 @@ def main() -> None:
          default=0.1,
          help="Weight for penalizing deviation from current pose in IK.",
      )
@@ -438,7 +447,21 @@ index 142f944..28c3154 100644
 +        type=float,
 +        default=0.0,
 +        help="hand-azimuth mode: if the target runs this far (m) beyond the reached pose, drag the "
-+             "tracking anchor along so returning the hand moves the arm back at once. 0 = off.",
++             "tracking anchor along so returning the hand moves the arm back at once. 0 = off. "
++             "Not recommended: the accumulated offset made the arm overshoot sideways/forward.",
++    )
++    parser.add_argument(
++        "--workspace-min-radius-m",
++        type=float,
++        default=0.0,
++        help="hand-azimuth mode: keep the IK target at least this far (m) from the base axis. 0 = off.",
++    )
++    parser.add_argument(
++        "--workspace-max-reach-m",
++        type=float,
++        default=0.0,
++        help="hand-azimuth mode: keep the IK target within this distance (m) of the shoulder so the "
++             "arm is never stretched straight. 0 = off.",
 +    )
      parser.add_argument(
          "--input-source",
@@ -450,7 +473,7 @@ index 142f944..28c3154 100644
      )
      parser.add_argument(
          "--avp-ip",
-@@ -1592,9 +1901,93 @@ def main() -> None:
+@@ -1592,9 +1924,93 @@ def main() -> None:
          default=29888,
          help="Pico 4 direct-mode UDP broadcast port.",
      )

@@ -77,6 +77,38 @@ class HandAzimuthBaseYaw:
             return None
         return math.atan2(float(r @ self.v), float(r @ self.u))
 
+    def clamp_workspace(
+        self,
+        pos: np.ndarray,
+        *,
+        min_radius_m: float,
+        max_reach_m: float,
+        shoulder_height_m: float,
+    ) -> np.ndarray:
+        """Keep a target inside a reachable shell around the base.
+
+        * horizontal distance from the base axis >= ``min_radius_m`` (stops the
+          target collapsing onto the axis, where azimuth and IK both blow up);
+        * distance from the shoulder point (``shoulder_height_m`` up the base
+          axis) <= ``max_reach_m`` (stops the arm being stretched straight,
+          the singular pose it cannot pull back out of).
+        The tracker is not modified, so no offset accumulates.
+        """
+        p = np.asarray(pos, dtype=np.float64)
+        r = p - self.anchor
+        h = float(r @ self.axis)
+        radial = r - self.axis * h
+        rho = float(np.linalg.norm(radial))
+        if rho < min_radius_m:
+            direction = radial / rho if rho > 1e-6 else self.u
+            radial = direction * min_radius_m
+        shoulder = self.axis * shoulder_height_m
+        from_shoulder = radial + self.axis * h - shoulder
+        dist = float(np.linalg.norm(from_shoulder))
+        if dist > max_reach_m:
+            from_shoulder *= max_reach_m / dist
+        return self.anchor + shoulder + from_shoulder
+
     def target(self, target_pos: np.ndarray) -> float:
         """Return the base joint angle (rad) for a wrist target position."""
         if self.anchor is None:
