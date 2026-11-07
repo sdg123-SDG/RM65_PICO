@@ -250,6 +250,8 @@ class RealBridgeLoopbackTests(unittest.TestCase):
             wait_commands(5)
             self.assertEqual(fake.calls[-1], {
                 'command': 'set_gripper_pick_on', 'speed': 500, 'force': 500, 'block': False})
+            # teleop_sim mirrors this onto the MuJoCo gripper: must stay a number.
+            self.assertEqual(bridge.gripper_position / 1000.0, 0.001)
             bridge.observe_gripper(.85, True)
             time.sleep(.25)
             wait_commands(5)

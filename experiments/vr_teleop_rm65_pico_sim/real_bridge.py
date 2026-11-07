@@ -84,6 +84,7 @@ class RealBridge:
         self.trace = TraceWriter(output)
         self.last_record, self.last_decision = 0., None
         self.gripper_position = None
+        self.gripper_force_mode = False
         self.gripper_input_log_at = 0.
         try:
             host, port = parse_real_addr(address)
@@ -264,17 +265,21 @@ class RealBridge:
             self.gripper_input_log_at = now
         if not valid or not np.isfinite(value) or not 0 <= value <= 1:
             return
-        mode, position = gripper_command_for_trigger(value, self.gripper_position == 'force')
+        mode, position = gripper_command_for_trigger(value, self.gripper_force_mode)
         if mode == 'force':
-            if self.gripper_position == 'force':
+            if self.gripper_force_mode:
                 return
-            self.gripper_position = 'force'
+            # gripper_position stays numeric (opening 1..1000): the simulation
+            # mirrors it onto the MuJoCo gripper. 1 = commanded fully closed.
+            self.gripper_force_mode = True
+            self.gripper_position = 1
             self.transport.submit_gripper_pick_on(GRIPPER_PICK_SPEED, GRIPPER_PICK_FORCE)
             print(f"[gripper] force grasp (set_gripper_pick_on speed={GRIPPER_PICK_SPEED} "
                   f"force={GRIPPER_PICK_FORCE})", flush=True)
             return
-        if position == self.gripper_position:
+        if position == self.gripper_position and not self.gripper_force_mode:
             return
+        self.gripper_force_mode = False
         self.gripper_position = position
         self.transport.submit_gripper_position(position)
 
