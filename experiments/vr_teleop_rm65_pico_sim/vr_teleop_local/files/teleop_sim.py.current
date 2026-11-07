@@ -46,6 +46,7 @@ from mujoco import viewer
 
 from util.ik import solve_pose_ik
 from util.ik import solve_body_pose_ik
+from util.base_yaw import HandAzimuthBaseYaw
 from util.quaternion import (
     matrix_to_quaternion,
     transform_vr_to_robot_pose,
@@ -820,6 +821,18 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
     latest_hand_qpos = None
     q_sol = data.qpos[:model.nq].copy()  # 初始化为当前关节角，避免未定义
 
+    # 方案 B：底座关节由手相对底座轴的水平方位直接驱动，IK 只解其余 5 个关节。
+    base_yaw = None
+    base_free_dofs = None
+    if args.base_yaw_mode == "hand-azimuth":
+        if args.robot != "rm65" or xrt_input is None:
+            raise ValueError("--base-yaw-mode hand-azimuth requires --robot rm65 --input-source xrtoolkit")
+        base_yaw = HandAzimuthBaseYaw(model, "joint_1")
+        base_free_dofs = np.array(
+            [model.jnt_dofadr[model.joint(f"joint_{i}").id] for i in range(2, 7)], dtype=int
+        )
+        print("[base yaw] hand-azimuth: joint_1 follows the hand's horizontal swing around the base", flush=True)
+
     num_arm_actuators = config.get("num_arm_actuators", model.nu)
     num_hand_actuators = config.get("num_hand_actuators", 0)
 
@@ -952,6 +965,8 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
                                 ema_alpha=args.ema_alpha,
                                 base_xmat=None,
                             )
+                            if base_yaw is not None:
+                                base_yaw.engage(data, current_site_pos, float(q_sol[0]))
                             xrt_clutch_active = True
                             last_clutch_error = ""
                             print(
@@ -1064,7 +1079,27 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
             # --- IK for arm ---
             ik_accepted = False
             run_ik = tracker.initialized and (xrt_input is None or xrt_clutch_active)
-            if run_ik:
+            if run_ik and base_yaw is not None and xrt_clutch_active:
+                q_init = data.qpos[: model.nq].copy()
+                q_init[base_yaw.qpos_index] = base_yaw.target(tracker.target_position)
+                q_sol_new = solve_pose_ik(
+                    model,
+                    ik_data,
+                    site_id,
+                    tracker.target_position,
+                    tracker.target_quaternion,
+                    q_init,
+                    rot_weight=args.rot_weight,
+                    damping=args.ik_damping,
+                    current_q_weight=args.ik_current_weight,
+                    home_qpos=np.asarray(home_qpos, dtype=np.float64)[base_free_dofs],
+                    skip_tail_joints=0,
+                    dof_indices=base_free_dofs,
+                )
+                if np.isfinite(q_sol_new[:6]).all() and np.max(np.abs(np.rad2deg(q_sol_new[:6] - q_sol[:6]))) < 30.0:
+                    q_sol = q_sol_new
+                    ik_accepted = True
+            elif run_ik:
                 q_sol_new = solve_pose_ik(
                     model,
                     ik_data,
@@ -1791,6 +1826,13 @@ def main() -> None:
         type=float,
         default=0.1,
         help="Weight for penalizing deviation from current pose in IK.",
+    )
+    parser.add_argument(
+        "--base-yaw-mode",
+        default="ik",
+        choices=["ik", "hand-azimuth"],
+        help="ik: IK solves all joints (original). hand-azimuth: RM65 joint_1 follows the "
+             "hand's horizontal azimuth around the base; IK solves joints 2-6.",
     )
     parser.add_argument(
         "--input-source",
