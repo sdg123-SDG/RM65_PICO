@@ -221,6 +221,18 @@ class LatestTransport:
             self.gripper_target = (payload, time.monotonic())
         self.wake.set()
 
+    def submit_gripper_pick_on(self, speed, force):
+        if not self.cfg.get('gripper_enabled', False):
+            raise RuntimeError('Gripper output is disabled')
+        # Force-controlled continuous grasp: keeps squeezing at `force` after
+        # contact instead of stopping like set_gripper_position does.
+        payload = {'command': 'set_gripper_pick_on', 'speed': max(1, min(1000, int(speed))),
+                   'force': max(1, min(1000, int(force))), 'block': False}
+        with self.lock:
+            self.gripper_error = None
+            self.gripper_target = (payload, time.monotonic())
+        self.wake.set()
+
     def cancel_gripper(self):
         with self.lock:
             self.gripper_target = None
@@ -357,7 +369,7 @@ class LatestTransport:
                 command,_=self.pending_query
                 if msg.get('state') in (command,command.removeprefix('get_')) or msg.get('command') in (command,command.removeprefix('get_')):
                     self.pending_query=None
-            if msg.get('command') in ('set_gripper', 'set_gripper_position'):
+            if msg.get('command') in ('set_gripper', 'set_gripper_position', 'set_gripper_pick_on'):
                 self._handle_gripper_ack(msg)
             elif msg.get('state') == 'current_arm_state' or 'arm_state' in msg:
                 state = decode_arm_state(msg)

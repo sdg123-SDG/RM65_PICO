@@ -1,5 +1,5 @@
 diff --git a/example/teleop_sim.py b/example/teleop_sim.py
-index 142f944..aaf4421 100644
+index 142f944..28c3154 100644
 --- a/example/teleop_sim.py
 +++ b/example/teleop_sim.py
 @@ -13,6 +13,7 @@ Supports multiple robot configurations via --robot:
@@ -135,7 +135,7 @@ index 142f944..aaf4421 100644
      # Wrist tracker
      tracker = WristTracker(
          initial_site_pos,
-@@ -728,19 +807,54 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+@@ -728,19 +807,58 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
          position_scale=args.position_scale,
          ema_alpha=args.ema_alpha,
          negate_rot_xy=config.get("negate_rot_xy", False) if args.input_source == "quest3" else False,
@@ -164,6 +164,10 @@ index 142f944..aaf4421 100644
 +        base_free_dofs = np.array(
 +            [model.jnt_dofadr[model.joint(f"joint_{i}").id] for i in range(2, 7)], dtype=int
 +        )
++        # IK 解限制在 MuJoCo 关节限位内 2°，避免 boundary_error 直接停机。
++        base_safe_ranges = np.array(
++            [model.jnt_range[model.joint(f"joint_{i}").id] for i in range(1, 7)], dtype=np.float64
++        ) + np.deg2rad([2.0, -2.0])
 +        print("[base yaw] hand-azimuth: joint_1 follows the hand's horizontal swing around the base", flush=True)
 +
      num_arm_actuators = config.get("num_arm_actuators", model.nu)
@@ -192,7 +196,7 @@ index 142f944..aaf4421 100644
          vis.cam.azimuth = model.vis.global_.azimuth
          vis.cam.elevation = model.vis.global_.elevation
          vis.cam.distance = model.stat.extent * 1.5
-@@ -748,6 +862,7 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+@@ -748,6 +866,7 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
  
          while vis.is_running():
              loop_start = time.time()
@@ -200,7 +204,7 @@ index 142f944..aaf4421 100644
  
              # --- Receive input data ---
              if avp_input is not None:
-@@ -803,6 +918,111 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+@@ -803,6 +922,111 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
                  if wrist is not None:
                      robot_position, robot_quaternion = wrist
                      tracker.update(robot_position, robot_quaternion)
@@ -312,7 +316,7 @@ index 142f944..aaf4421 100644
              else:
                  # --- Quest 3 path (unchanged) ---
                  packet = recv_latest_packet(sock)
-@@ -857,7 +1077,29 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+@@ -857,7 +1081,39 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
                  last_log_time = now
  
              # --- IK for arm ---
@@ -333,17 +337,27 @@ index 142f944..aaf4421 100644
 +                    damping=args.ik_damping,
 +                    current_q_weight=args.ik_current_weight,
 +                    home_qpos=np.asarray(home_qpos, dtype=np.float64)[base_free_dofs],
++                    home_weight=args.ik_home_weight,
 +                    skip_tail_joints=0,
 +                    dof_indices=base_free_dofs,
++                    joint_ranges=base_safe_ranges,
 +                )
 +                if np.isfinite(q_sol_new[:6]).all() and np.max(np.abs(np.rad2deg(q_sol_new[:6] - q_sol[:6]))) < 30.0:
 +                    q_sol = q_sol_new
 +                    ik_accepted = True
++                if args.workspace_drag_m > 0.0:
++                    # 手超出可达范围时，把跟随零点一起拖走，手回来时机械臂立即跟回。
++                    ik_data.qpos[: model.nq] = q_sol
++                    mujoco.mj_kinematics(model, ik_data)
++                    excess = tracker.target_position - ik_data.site_xpos[site_id]
++                    excess_norm = float(np.linalg.norm(excess))
++                    if excess_norm > args.workspace_drag_m:
++                        tracker.shift_target(-excess * (1.0 - args.workspace_drag_m / excess_norm))
 +            elif run_ik:
                  q_sol_new = solve_pose_ik(
                      model,
                      ik_data,
-@@ -872,8 +1114,18 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+@@ -872,8 +1128,18 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
                      skip_tail_joints=config.get("skip_tail_joints", 0),
                  )
                  # 丢弃跳变解：任意关节变化超过 30° 则保持上一帧
@@ -363,7 +377,7 @@ index 142f944..aaf4421 100644
  
              # --- Apply arm controls ---
              if tracker.initialized:
-@@ -907,6 +1159,30 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+@@ -907,6 +1173,30 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
                      if latest_gripper_cmd is not None and gripper_actuator_id != -1:
                          data.ctrl[gripper_actuator_id] = latest_gripper_cmd
  
@@ -394,7 +408,7 @@ index 142f944..aaf4421 100644
              # --- Step simulation ---
              mujoco.mj_step(model, data)
              vis.sync()
-@@ -915,7 +1191,6 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+@@ -915,7 +1205,6 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
              if sleep_time > 0:
                  time.sleep(sleep_time)
  
@@ -402,7 +416,7 @@ index 142f944..aaf4421 100644
  # ---------------------------------------------------------------------------
  # Aloha bimanual simulation loop
  # ---------------------------------------------------------------------------
-@@ -1552,11 +1827,18 @@ def main() -> None:
+@@ -1552,11 +1841,31 @@ def main() -> None:
          default=0.1,
          help="Weight for penalizing deviation from current pose in IK.",
      )
@@ -412,6 +426,19 @@ index 142f944..aaf4421 100644
 +        choices=["ik", "hand-azimuth"],
 +        help="ik: IK solves all joints (original). hand-azimuth: RM65 joint_1 follows the "
 +             "hand's horizontal azimuth around the base; IK solves joints 2-6.",
++    )
++    parser.add_argument(
++        "--ik-home-weight",
++        type=float,
++        default=0.01,
++        help="hand-azimuth mode: weight pulling IK toward the start pose (lower = tracks farther).",
++    )
++    parser.add_argument(
++        "--workspace-drag-m",
++        type=float,
++        default=0.0,
++        help="hand-azimuth mode: if the target runs this far (m) beyond the reached pose, drag the "
++             "tracking anchor along so returning the hand moves the arm back at once. 0 = off.",
 +    )
      parser.add_argument(
          "--input-source",
@@ -423,7 +450,7 @@ index 142f944..aaf4421 100644
      )
      parser.add_argument(
          "--avp-ip",
-@@ -1592,9 +1874,93 @@ def main() -> None:
+@@ -1592,9 +1901,93 @@ def main() -> None:
          default=29888,
          help="Pico 4 direct-mode UDP broadcast port.",
      )
@@ -518,3 +545,62 @@ index 142f944..aaf4421 100644
  
      # Apply defaults from config if user didn't override
      if args.scene is None:
+diff --git a/util/ik.py b/util/ik.py
+index fff4341..a42366c 100644
+--- a/util/ik.py
++++ b/util/ik.py
+@@ -53,8 +53,13 @@ def solve_pose_ik(
+     skip_tail_joints: int = 2,
+     damping: float = 1e-3,
+     dof_indices: np.ndarray | None = None,
++    joint_ranges: np.ndarray | None = None,
+ ) -> np.ndarray:
+-    """Levenberg-Marquardt IK for a site pose (position + orientation)."""
++    """Levenberg-Marquardt IK for a site pose (position + orientation).
++
++    ``joint_ranges`` (k x 2, rad), when given, clamps ``q[:k]`` after every
++    iteration so the solution never leaves the joint limits.
++    """
+     q = np.asarray(q_init, dtype=np.float64).copy()
+     target_rot = np.asarray(quaternion_to_matrix(target_quat), dtype=np.float64)
+ 
+@@ -179,7 +184,7 @@ def solve_pose_ik(
+ 
+         JJ = jac @ jac.T + damping * np.eye(jac.shape[0])
+         dq = jac.T @ np.linalg.solve(JJ, err)
+-        
++
+         # Zero out non-robot dq again to be safe
+         if dof_indices is not None:
+              dq[mask] = 0.0
+@@ -188,6 +193,9 @@ def solve_pose_ik(
+         
+         # Update q using integratePos to handle free joints correctly (even if we don't move them)
+         mujoco.mj_integratePos(model, q, dq, 1.0)
++        if joint_ranges is not None:
++            k = len(joint_ranges)
++            q[:k] = np.clip(q[:k], joint_ranges[:, 0], joint_ranges[:, 1])
+     return q
+ 
+ 
+diff --git a/util/wrist_tracker.py b/util/wrist_tracker.py
+index 1819d12..f715122 100644
+--- a/util/wrist_tracker.py
++++ b/util/wrist_tracker.py
+@@ -49,6 +49,16 @@ class WristTracker:
+         self.residual: np.ndarray | None = None
+         self.euler_residual: tuple | None = None
+ 
++    def shift_target(self, delta: np.ndarray) -> None:
++        """Move the position anchor (and current target) by ``delta``.
++
++        Used to drag the anchor along when the hand leaves the reachable
++        workspace, so moving the hand back moves the robot back at once.
++        """
++        delta = np.asarray(delta, dtype=np.float64)
++        self._initial_site_pos = self._initial_site_pos + delta
++        self.target_position = self.target_position + delta
++
+     @property
+     def initialized(self) -> bool:
+         return self._initial_wrist_position is not None

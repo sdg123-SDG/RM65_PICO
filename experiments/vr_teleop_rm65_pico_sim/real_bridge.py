@@ -46,6 +46,23 @@ def trigger_to_gripper_position(value):
     return max(1, min(1000, int(round((1. - float(value)) * 1000))))
 
 
+# Trigger pressed this deep switches to force-controlled grasping
+# (set_gripper_pick_on); releasing below the lower value returns to position
+# control. Position mode stops at contact and does not keep squeezing.
+GRIPPER_FORCE_ON = .90
+GRIPPER_FORCE_OFF = .80
+GRIPPER_PICK_SPEED = 500
+GRIPPER_PICK_FORCE = 500
+
+
+def gripper_command_for_trigger(value, force_mode):
+    """Return ('force', None) or ('position', opening) for a trigger value."""
+    value = float(value)
+    if value >= GRIPPER_FORCE_ON or (force_mode and value >= GRIPPER_FORCE_OFF):
+        return 'force', None
+    return 'position', trigger_to_gripper_position(value)
+
+
 def _default_guard_factory(arm, address):
     from launch_vdo_pico_real import install_guard_wrapper
     install_guard_wrapper(VDO)
@@ -247,7 +264,15 @@ class RealBridge:
             self.gripper_input_log_at = now
         if not valid or not np.isfinite(value) or not 0 <= value <= 1:
             return
-        position = trigger_to_gripper_position(value)
+        mode, position = gripper_command_for_trigger(value, self.gripper_position == 'force')
+        if mode == 'force':
+            if self.gripper_position == 'force':
+                return
+            self.gripper_position = 'force'
+            self.transport.submit_gripper_pick_on(GRIPPER_PICK_SPEED, GRIPPER_PICK_FORCE)
+            print(f"[gripper] force grasp (set_gripper_pick_on speed={GRIPPER_PICK_SPEED} "
+                  f"force={GRIPPER_PICK_FORCE})", flush=True)
+            return
         if position == self.gripper_position:
             return
         self.gripper_position = position

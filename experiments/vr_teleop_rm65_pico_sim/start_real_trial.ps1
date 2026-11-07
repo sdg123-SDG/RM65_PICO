@@ -3,8 +3,9 @@ param(
     [ValidateSet('grip')][string]$Clutch = 'grip',
     # hand: base joint follows the hand's horizontal swing (scheme B); ik: original full IK
     [ValidateSet('hand', 'ik')][string]$BaseYaw = 'hand',
-    # IK orientation weight; lower (e.g. 0.3) favours position over wrist orientation
-    [ValidateRange(0.05, 2.0)][double]$RotWeight = 1.0,
+    # IK orientation weight; lower favours position over wrist orientation.
+    # Default: 0.3 with -BaseYaw hand, 1.0 (original) with -BaseYaw ik.
+    [ValidateRange(0.05, 2.0)][double]$RotWeight = 0,
     [string]$RealAddress
 )
 $ErrorActionPreference = 'Stop'
@@ -46,20 +47,24 @@ if ($services.Count -eq 0) {
     if ($startedService.HasExited) { throw 'XRoboToolkit PC Service exited during startup.' }
 }
 $forwardArgument = '--view-forward-axis=' + $Forward.ToLowerInvariant()
-$baseYawArgument = if ($BaseYaw -eq 'hand') { '--base-yaw-mode=hand-azimuth' } else { '--base-yaw-mode=ik' }
+if (-not $PSBoundParameters.ContainsKey('RotWeight')) { $RotWeight = if ($BaseYaw -eq 'hand') { 0.3 } else { 1.0 } }
+# hand mode: joint-limit clamp is built in; lower start-pose pull and drag the anchor past 5 cm overshoot
+$baseYawArguments = if ($BaseYaw -eq 'hand') {
+    @('--base-yaw-mode=hand-azimuth', '--ik-home-weight=0.002', '--workspace-drag-m=0.05')
+} else { @('--base-yaw-mode=ik') }
 $transportLogs = Join-Path $trialDir 'logs\real\transport_logs'
 $knownLogs = @{}
 if (Test-Path -LiteralPath $transportLogs) {
     Get-ChildItem -LiteralPath $transportLogs -Filter 'latest_*.jsonl' -File | ForEach-Object { $knownLogs[$_.Name] = $true }
 }
-Write-Host "REAL RM65 bridge: $RealAddress; headset forward maps to $Forward; clutch=$Clutch; base yaw=$BaseYaw."
+Write-Host "REAL RM65 bridge: $RealAddress; headset forward maps to $Forward; clutch=$Clutch; base yaw=$BaseYaw; rot weight=$RotWeight."
 Write-Host 'Startup: return to the last hand-guided pose and verify it before PICO following is enabled.'
 Write-Host 'Left grip: press once to start following, press again to stop.'
-Write-Host 'Right trigger: press depth closes the gripper in proportion; released = fully open.'
+Write-Host 'Right trigger: press depth closes the gripper in proportion; pressed past 90% = force grasp (keeps squeezing); released = fully open.'
 Push-Location $simDir
 try {
     & $python -u .\example\teleop_sim.py --robot rm65 --input-source xrtoolkit `
-        --xrtoolkit-hand left --xrtoolkit-clutch $Clutch $forwardArgument $baseYawArgument `
+        --xrtoolkit-hand left --xrtoolkit-clutch $Clutch $forwardArgument @baseYawArguments `
         ('--rot-weight=' + $RotWeight.ToString([Globalization.CultureInfo]::InvariantCulture)) `
         --position-scale 0.5 --bridge-real $RealAddress
     $teleopExitCode = $LASTEXITCODE

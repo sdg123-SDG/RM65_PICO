@@ -20,7 +20,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 PROJECT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
-from real_bridge import RealBridge, trigger_to_gripper_position
+from real_bridge import RealBridge, gripper_command_for_trigger, trigger_to_gripper_position
 from latest_bridge import LatestTransport
 
 
@@ -93,7 +93,7 @@ class LocalController:
                         self.joint = msg["joint"][:]
                         if not self.drop_feedback:
                             reply = {"command": "movej", "receive_state": True}
-                    elif command in ("set_gripper_position", "set_gripper_release", "set_gripper_pick"):
+                    elif command in ("set_gripper_position", "set_gripper_release", "set_gripper_pick", "set_gripper_pick_on"):
                         if not self.drop_gripper_ack:
                             reply = {"command": "set_gripper", "state": True}
                     if reply is not None:
@@ -211,17 +211,26 @@ class RealBridgeLoopbackTests(unittest.TestCase):
         self.assertEqual(trigger_to_gripper_position(.50), 500)
         self.assertEqual(trigger_to_gripper_position(1.), 1)
 
+    def test_deep_trigger_switches_to_force_grasp_with_hysteresis(self):
+        self.assertEqual(gripper_command_for_trigger(.5, False), ('position', 500))
+        self.assertEqual(gripper_command_for_trigger(.89, False), ('position', 110))
+        self.assertEqual(gripper_command_for_trigger(.90, False), ('force', None))
+        self.assertEqual(gripper_command_for_trigger(.82, True), ('force', None))
+        self.assertEqual(gripper_command_for_trigger(.79, True), ('position', 210))
+        self.assertEqual(gripper_command_for_trigger(0., True), ('position', 1000))
+
     def test_right_trigger_closes_in_proportion_and_release_opens(self):
         fake = LocalController(); self.addCleanup(fake.close)
         with tempfile.TemporaryDirectory(prefix="rm65-gripper-loopback-") as tmp:
             bridge = RealBridge(self.model, fake.address, Path(tmp) / "real.jsonl", "grip",
                                 guard_factory=lambda arm, addr: FakeGuard(arm, addr))
             self.addCleanup(lambda: None if bridge._closed else bridge.close())
+            grip_cmds = ('set_gripper_position', 'set_gripper_pick_on')
             def wait_commands(count):
                 deadline = time.monotonic() + 3
-                while len([c for c in fake.calls if c['command'] == 'set_gripper_position']) < count and time.monotonic() < deadline:
+                while len([c for c in fake.calls if c['command'] in grip_cmds]) < count and time.monotonic() < deadline:
                     time.sleep(.01)
-                self.assertEqual(len([c for c in fake.calls if c['command'] == 'set_gripper_position']), count)
+                self.assertEqual(len([c for c in fake.calls if c['command'] in grip_cmds]), count)
                 while bridge.transport.gripper_inflight is not None and time.monotonic() < deadline:
                     time.sleep(.01)
                 self.assertIsNone(bridge.transport.gripper_error)
@@ -231,18 +240,26 @@ class RealBridgeLoopbackTests(unittest.TestCase):
             wait_commands(1)
             self.assertEqual(fake.calls[-1], {
                 'command': 'set_gripper_position', 'position': 1000, 'block': False})
-            for count, trigger, position in ((2, .25, 750), (3, .50, 500), (4, 1., 1)):
+            for count, trigger, position in ((2, .25, 750), (3, .50, 500), (4, .85, 150)):
                 bridge.observe_gripper(trigger, True)
                 wait_commands(count)
                 self.assertEqual(fake.calls[-1], {
                     'command': 'set_gripper_position', 'position': position, 'block': False})
-            bridge.observe_gripper(0., True)
+            # Fully pressed: one force-controlled grasp, held while the trigger stays deep.
+            bridge.observe_gripper(1., True)
             wait_commands(5)
+            self.assertEqual(fake.calls[-1], {
+                'command': 'set_gripper_pick_on', 'speed': 500, 'force': 500, 'block': False})
+            bridge.observe_gripper(.85, True)
+            time.sleep(.25)
+            wait_commands(5)
+            bridge.observe_gripper(0., True)
+            wait_commands(6)
             self.assertEqual(fake.calls[-1], {
                 'command': 'set_gripper_position', 'position': 1000, 'block': False})
             bridge.observe_gripper(.01, False)
             time.sleep(.25)
-            self.assertEqual(len([c for c in fake.calls if c['command'] == 'set_gripper_position']), 5)
+            self.assertEqual(len([c for c in fake.calls if c['command'] in grip_cmds]), 6)
             bridge.close()
 
     def test_missing_gripper_ack_allows_later_press(self):
