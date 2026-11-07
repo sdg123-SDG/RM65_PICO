@@ -1,0 +1,55 @@
+diff --git a/simu/cli.py b/simu/cli.py
+index 2e86fb0..4672c0e 100644
+--- a/simu/cli.py
++++ b/simu/cli.py
+@@ -134,5 +134,18 @@ def _read_key(fd: int) -> str:
+     import select
+ 
++    if os.name == "nt":
++        import msvcrt
++        while not msvcrt.kbhit():
++            time.sleep(0.02)
++        key = msvcrt.getwch()
++        if key in ("\x00", "\xe0"):
++            key = msvcrt.getwch()
++            return {"H": "\x1b[A", "P": "\x1b[B", "M": "\x1b[C", "K": "\x1b[D",
++                    "G": "\x1b[H", "O": "\x1b[F", "S": "\x1b[3~"}.get(key, "")
++        if key == "\x03":
++            raise KeyboardInterrupt
++        return "\x04" if key == "\x1a" else key
++
+     b = os.read(fd, 1)
+     if not b:
+         raise EOFError
+@@ -170,12 +183,13 @@ def _edit_line(prompt: str, history: list[str]) -> str:
+-    import termios
+-
+     fd = sys.stdin.fileno()
+-    saved = termios.tcgetattr(fd)
+-    mode = termios.tcgetattr(fd)
+-    mode[3] &= ~(termios.ICANON | termios.ECHO)
+-    mode[6][termios.VMIN] = 1
+-    mode[6][termios.VTIME] = 0
+-    termios.tcsetattr(fd, termios.TCSADRAIN, mode)
++    saved = None
++    if os.name != "nt":
++        import termios
++        saved = termios.tcgetattr(fd)
++        mode = termios.tcgetattr(fd)
++        mode[3] &= ~(termios.ICANON | termios.ECHO)
++        mode[6][termios.VMIN] = 1
++        mode[6][termios.VTIME] = 0
++        termios.tcsetattr(fd, termios.TCSADRAIN, mode)
+     buf: list[str] = []
+     cursor = 0
+     idx = len(history)
+@@ -231,7 +245,8 @@ def _edit_line(prompt: str, history: list[str]) -> str:
+                 continue
+             _paint_line(prompt, buf, cursor)
+     finally:
+-        termios.tcsetattr(fd, termios.TCSADRAIN, saved)
++        if saved is not None:
++            termios.tcsetattr(fd, termios.TCSADRAIN, saved)
+ 
+ 
+ def _read_cli_line(prompt: str, history: list[str]) -> str:

@@ -1,0 +1,50 @@
+diff --git a/real/json_link.py b/real/json_link.py
+index bb1b0fe..580a362 100644
+--- a/real/json_link.py
++++ b/real/json_link.py
+@@ -48,6 +48,7 @@ class JsonArmLink:
+         self._buf = bytearray()
+         self.last_arm_state_received = 0.0
+         self.last_gripper_rpc = None
++        self.last_movej_rpc = None
+ 
+     def send_stream(self, payload: dict[str, Any], *, timeout_s: float = 0.1) -> None:
+         """Bounded send-only CANFD frame; uses the same socket/parser lock.
+@@ -114,8 +115,11 @@ class JsonArmLink:
+         cmd = str(payload.get("command") or "")
+         skip_state = cmd in _MOTION_CMDS
+         gripper = cmd == "set_gripper_position"
++        movej = cmd == "movej"
+         if gripper:
+             self.last_gripper_rpc = {"request": dict(payload), "reply": None, "skipped": []}
++        if movej:
++            self.last_movej_rpc = {"request": dict(payload), "reply": None, "skipped": []}
+         with self._lock:
+             prev = self._sock.gettimeout()
+             deadline = None if timeout_s is None else time.monotonic() + float(timeout_s)
+@@ -130,6 +134,16 @@ class JsonArmLink:
+                             raise TimeoutError("timed out")
+                         self._sock.settimeout(left)
+                     msg = self._recv_json_locked()
++                    if movej:
++                        # A queued CANFD joint_state is not the movej ACK.
++                        matched=(msg.get('command')=='movej' or 'movej' in msg or
++                                 ('command' not in msg and 'receive_state' in msg) or
++                                 (msg.get('state')=='current_trajectory_state' and
++                                  msg.get('trajectory_state') is True))
++                        if not matched:
++                            self.last_movej_rpc['skipped']=(self.last_movej_rpc['skipped']+[msg])[-16:]
++                            continue
++                        self.last_movej_rpc['reply']=msg
+                     if gripper:
+                         # CANFD acknowledgements/trajectory events may remain on
+                         # this shared stream. They are NOT a gripper rejection.
+@@ -146,6 +158,8 @@ class JsonArmLink:
+                         continue
+                     return msg
+             except Exception as exc:
++                if movej:
++                    self.last_movej_rpc['error']=f'{type(exc).__name__}: {exc}'
+                 if gripper:
+                     self.last_gripper_rpc["error"] = f"{type(exc).__name__}: {exc}"
+                 raise

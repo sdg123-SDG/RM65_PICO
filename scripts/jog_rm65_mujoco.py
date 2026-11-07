@@ -55,6 +55,7 @@ class JogControl:
             vel = ay * self.speed * np.array([1., 0., 0.])
             vel += ax * self.speed * np.array([0., -1., 0.])
             vel += np.array([0., 0., up])
+            vel = getattr(self.arm, "base_rotation", np.eye(3)) @ vel
             vel *= min(1., self.speed / max(np.linalg.norm(vel), 1e-12))
         if np.linalg.norm(vel) < 1e-9:
             self.arm.hold()

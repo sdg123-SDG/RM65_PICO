@@ -1,0 +1,10 @@
+{
+  "vdo-rm65b": {
+    "url": "ssh://git@www.accloudlab.com:9522/VisionDexOps/vdo-rm65b.git",
+    "commit": "486497242172423ea9bfaf95b49516a218255210"
+  },
+  "vdo-sim": {
+    "url": "ssh://git@www.accloudlab.com:9522/VisionDexOps/vdo-sim.git",
+    "commit": "cd4c8af57a92ba2852f1ffc03265cfd7d872274b"
+  }
+}

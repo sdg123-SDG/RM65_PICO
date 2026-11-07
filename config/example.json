@@ -1,6 +1,9 @@
 {
+  "backend": "vdo",
+  "vdo_dir": "../vdo-rm65b",
+  "vdo_camera": "d435i",
   "service_dir": "software/XRoboToolkit-PC-Service",
-  "scene": "assets/scene/custom_rm65_box/scene_gemini_gravcomp.xml",
+  "scene": "../vdo-sim/assets/scene/custom_rm65_box/scene_d435i_gravcomp.xml",
   "tcp_offset_m": [0.0, 0.0, 0.137],
   "teleop": {
     "frame": "robot",

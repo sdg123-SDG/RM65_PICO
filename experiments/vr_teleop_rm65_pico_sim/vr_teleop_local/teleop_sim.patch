@@ -1,0 +1,468 @@
+diff --git a/example/teleop_sim.py b/example/teleop_sim.py
+index 142f944..d4a18ef 100644
+--- a/example/teleop_sim.py
++++ b/example/teleop_sim.py
+@@ -13,6 +13,7 @@ Supports multiple robot configurations via --robot:
+ Input sources (--input-source):
+   quest3         Meta Quest 3 via UDP (default)
+   avp            Apple Vision Pro via avp_stream / Tracking Streamer
++  xrtoolkit      XRoboToolkit PICO controller via the local RM65_PICO SDK
+ 
+ Examples:
+     python example/teleop_sim.py --robot piper --port 9000
+@@ -33,7 +34,10 @@ sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
+ sys.path.insert(0, str(_Path(__file__).resolve().parent.parent / "third_party" / "AnyDexRetarget"))
+ 
+ import argparse
++from contextlib import contextmanager
++import json
+ import time
++import uuid
+ from pathlib import Path
+ 
+ import mujoco
+@@ -64,6 +68,33 @@ from util.hand_retarget import (
+     default_pico4_config_path,
+ )
+ 
++
++@contextmanager
++def _managed_optional(resource, method):
++    try:
++        yield resource
++    finally:
++        if resource is not None:
++            getattr(resource, method)()
++
++
++@contextmanager
++def _real_bridge_context(args, model):
++    if not args.bridge_real:
++        yield None
++        return
++    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
++    from real_bridge import RealBridge
++    output = args.bridge_real_log or (Path(__file__).resolve().parents[2] / "logs" / "real" /
++                                      f"bridge_{uuid.uuid4().hex}.jsonl")
++    bridge = RealBridge(model, args.bridge_real, output, args.xrtoolkit_clutch)
++    print("[gripper] right trigger closes in proportion; released trigger fully opens", flush=True)
++    print(f"[real] session log: {output}", flush=True)
++    try:
++        yield bridge
++    finally:
++        bridge.close()
++
+ # ---------------------------------------------------------------------------
+ # Scene / config paths
+ # ---------------------------------------------------------------------------
+@@ -644,6 +675,16 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+     home_qpos = config["home_qpos"]
+     hand_type = config.get("hand_type")
+ 
++    if args.robot == "rm65":
++        for joint_index in range(6):
++            if model.jnt_limited[joint_index] and not (
++                model.jnt_range[joint_index, 0] <= home_qpos[joint_index] <= model.jnt_range[joint_index, 1]
++            ):
++                raise ValueError(
++                    f"RM65 startup joint {joint_index + 1} is outside MuJoCo limits: "
++                    f"{np.rad2deg(home_qpos[joint_index]):.3f} deg"
++                )
++
+     # Apply initial pose
+     if hand_type == "wuji":
+         _apply_initial_pose_kinova_wuji(model, data, home_qpos, config.get("num_arm_actuators", 7))
+@@ -703,6 +744,7 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+     sock = None
+     avp_input = None
+     pico4_input = None
++    xrt_input = None
+     if args.input_source == "avp":
+         from util.avp_input import AVPInput
+         avp_input = AVPInput(ip=args.avp_ip)
+@@ -717,10 +759,46 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+             broadcast_port=args.pico4_broadcast_port,
+         )
+         print(f"  Input: Pico 4 ({args.pico4_mode})")
++    elif args.input_source == "xrtoolkit":
++        from util.xrtoolkit_input import XrToolkitPicoInput
++        xrt_input = XrToolkitPicoInput(hand=args.xrtoolkit_hand)
++        clutch_label = (
++            "grip or trigger" if args.xrtoolkit_clutch == "auto" else args.xrtoolkit_clutch
++        )
++        print(
++            f"  Input: XRoboToolkit PICO controller ({args.xrtoolkit_hand}); "
++            + ("press left grip to toggle following; " if args.bridge_real else
++               f"hold {clutch_label} >= {args.xrtoolkit_clutch_threshold:.2f} to follow; ")
++            + f"requires Head pose; head-forward -> RM65 {args.view_forward_axis}; "
++            + ("REAL RM65: left grip toggles follow, right trigger position-controls gripper" if args.bridge_real
++               else "MuJoCo only, no RM65 SDK/transport"),
++            flush=True,
++        )
+     else:
+         sock = make_socket(args.port)
+         print(f"  Input: Quest 3 (UDP port {args.port})")
+ 
++    bridge_preview = None
++    if args.bridge_preview_log:
++        if args.robot != "rm65" or xrt_input is None:
++            raise ValueError("bridge preview requires --robot rm65 --input-source xrtoolkit")
++        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
++        from offline_bridge_preview import OfflineBridgePreview
++        bridge_preview = OfflineBridgePreview(model, args.bridge_preview_inventory, args.bridge_preview_log)
++        print(f"  Offline bridge preview: {args.bridge_preview_log}; no real feedback or motion output", flush=True)
++
++    loopback_bridge = None
++    if args.bridge_loopback_log:
++        if args.robot != "rm65" or xrt_input is None:
++            raise ValueError("bridge loopback requires --robot rm65 --input-source xrtoolkit")
++        if args.xrtoolkit_clutch != args.bridge_loopback_clutch:
++            raise ValueError("loopback requires one explicit, matching --xrtoolkit-clutch source")
++        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
++        from loopback_bridge import LoopbackBridge
++        loopback_bridge = LoopbackBridge(model, data.qpos[:6], args.bridge_preview_inventory,
++                                         args.bridge_loopback_log, args.bridge_loopback_clutch)
++        print(f"  Bridge loopback: {args.bridge_loopback_log}; synthetic localhost controller only", flush=True)
++
+     # Wrist tracker
+     tracker = WristTracker(
+         initial_site_pos,
+@@ -728,11 +806,16 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+         position_scale=args.position_scale,
+         ema_alpha=args.ema_alpha,
+         negate_rot_xy=config.get("negate_rot_xy", False) if args.input_source == "quest3" else False,
+-        base_xmat=base_xmat,
++        # XRoboToolkit deltas are already expressed in the robot base frame by
++        # the view-calibrated adapter below.
++        base_xmat=None if args.input_source == "xrtoolkit" else base_xmat,
+     )
+ 
+     # State variables
+     last_log_time = time.time()
++    last_xrt_diag_time = 0.0
++    xrt_clutch_active = False
++    last_clutch_error = ""
+     latest_gripper_cmd = None
+     latest_hand_qpos = None
+     q_sol = data.qpos[:model.nq].copy()  # 初始化为当前关节角，避免未定义
+@@ -740,7 +823,25 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+     num_arm_actuators = config.get("num_arm_actuators", model.nu)
+     num_hand_actuators = config.get("num_hand_actuators", 0)
+ 
+-    with viewer.launch_passive(model, data) as vis:
++    with _managed_optional(xrt_input, "stop"), _managed_optional(bridge_preview, "close"), \
++         _managed_optional(loopback_bridge, "close"), viewer.launch_passive(model, data) as vis, \
++         _real_bridge_context(args, model) as real_bridge:
++        if real_bridge is not None:
++            data.qpos[:6] = real_bridge.initial_sim_q_rad
++            data.qvel[:6] = 0.0
++            data.ctrl[:6] = real_bridge.initial_sim_q_rad
++            q_sol[:6] = real_bridge.initial_sim_q_rad
++            home_qpos = real_bridge.initial_sim_q_rad.copy()
++            mujoco.mj_forward(model, data)
++            print("[real] model synchronized to live measured joints; release clutch before following", flush=True)
++        if loopback_bridge is not None:
++            loopback_bridge.start()
++        active_bridge = loopback_bridge if loopback_bridge is not None else real_bridge
++        if real_bridge is not None:
++            from follow_latch import ToggleFollow
++            follow_latch = ToggleFollow(threshold=args.xrtoolkit_clutch_threshold)
++        else:
++            follow_latch = None
+         vis.cam.azimuth = model.vis.global_.azimuth
+         vis.cam.elevation = model.vis.global_.elevation
+         vis.cam.distance = model.stat.extent * 1.5
+@@ -748,6 +849,7 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+ 
+         while vis.is_running():
+             loop_start = time.time()
++            clutch_channel = None
+ 
+             # --- Receive input data ---
+             if avp_input is not None:
+@@ -803,6 +905,109 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+                 if wrist is not None:
+                     robot_position, robot_quaternion = wrist
+                     tracker.update(robot_position, robot_quaternion)
++            elif xrt_input is not None:
++                # --- Local XRoboToolkit controller adapter for this experiment ---
++                controller_tracked = xrt_input.poll()
++                if follow_latch is not None:
++                    status = xrt_input.sample_status()
++                    real_bridge.observe_gripper(status.get('right_trigger', 0.), status.get('right_trigger_valid', False))
++                    if real_bridge.gripper_position is not None and hand_type == 'gripper' and gripper_actuator_id != -1:
++                        # Command is EG2 opening (1 closed, 1000 open). This actuator is 0 closed, gripper_max open.
++                        opening = real_bridge.gripper_position / 1000.0
++                        latest_gripper_cmd = config['gripper_max'] * opening
++                if controller_tracked:
++                    if follow_latch is not None:
++                        was_active = follow_latch.active
++                        requested = follow_latch.update(status['grip'], status['controller_valid'] and status['head_valid'])
++                        if requested != was_active:
++                            print('[follow] ON' if requested else '[follow] OFF', flush=True)
++                        clutch_channel = 'grip' if requested and (xrt_clutch_active or real_bridge.supervisor.state == 'READY') else None
++                    else:
++                        clutch_channel = xrt_input.clutch_channel(
++                            source=args.xrtoolkit_clutch,
++                            threshold=args.xrtoolkit_clutch_threshold,
++                        )
++                    clutch_down = clutch_channel is not None
++                    if clutch_down and not xrt_clutch_active:
++                        try:
++                            frame = xrt_input.begin_clutch(args.view_forward_axis)
++                            if active_bridge is not None and active_bridge.supervisor.state == "READY":
++                                measured_q = active_bridge.supervisor.measured_sim_q_rad()
++                                data.qpos[:6] = measured_q
++                                data.qvel[:6] = 0.0
++                                data.ctrl[:6] = measured_q
++                            # The previous simulation step integrates qpos after
++                            # computing site transforms. Refresh them before
++                            # anchoring a new clutch, including after real hold.
++                            mujoco.mj_forward(model, data)
++                            q_sol[:6] = data.qpos[:6]
++                            current_site_pos = data.site_xpos[site_id].copy()
++                            current_site_quat = matrix_to_quaternion(
++                                data.site_xmat[site_id].reshape(3, 3).copy()
++                            )
++                            tracker = WristTracker(
++                                current_site_pos,
++                                current_site_quat,
++                                position_scale=args.position_scale,
++                                ema_alpha=args.ema_alpha,
++                                base_xmat=None,
++                            )
++                            xrt_clutch_active = True
++                            last_clutch_error = ""
++                            print(
++                                f"[clutch] engaged by {clutch_channel}; "
++                                f"reference={frame['reference_mode']}; "
++                                f"forward -> robot {frame['forward_axis']} "
++                                f"(PICO vector {np.round(frame['robot_forward_in_pico'], 3).tolist()}); "
++                                "tracking re-zeroed at current simulated pose",
++                                flush=True,
++                            )
++                        except ValueError as exc:
++                            message = str(exc)
++                            now_mono = time.monotonic()
++                            if message != last_clutch_error or now_mono - last_xrt_diag_time >= 2.0:
++                                print(f"[clutch] waiting: {message}", flush=True)
++                                last_clutch_error = message
++                                last_xrt_diag_time = now_mono
++                    elif not clutch_down and xrt_clutch_active:
++                        xrt_input.end_clutch()
++                        xrt_clutch_active = False
++                        print("[clutch] released; simulated arm holds its last pose", flush=True)
++
++                    if xrt_clutch_active:
++                        wrist = xrt_input.get_wrist_pose()
++                        if wrist is not None:
++                            robot_position, robot_quaternion = wrist
++                            tracker.update(robot_position, robot_quaternion)
++                        if (
++                            real_bridge is None and args.xrtoolkit_clutch != "trigger"
++                            and hand_type == "gripper"
++                            and gripper_actuator_id != -1
++                        ):
++                            pinch_distance = xrt_input.get_pinch_distance()
++                            if pinch_distance is not None:
++                                latest_gripper_cmd = _pinch_to_gripper(
++                                    pinch_distance,
++                                    config["pinch_max_distance"],
++                                    config["gripper_max"],
++                                    inverted=config.get("pinch_inverted", False),
++                                )
++                    elif time.monotonic() - last_xrt_diag_time >= 2.0:
++                        print(f"[xrtoolkit] {xrt_input.diagnostics()}", flush=True)
++                        last_xrt_diag_time = time.monotonic()
++                else:
++                    if follow_latch is not None:
++                        follow_latch.update(0., valid=False)
++                    if xrt_clutch_active:
++                        xrt_input.end_clutch()
++                        xrt_clutch_active = False
++                        print("[clutch] tracking lost; simulated arm holds its last pose", flush=True)
++                    # A stale/lost controller sample leaves the simulated arm
++                    # at its last command; no stale pose is replayed.
++                    now = time.monotonic()
++                    if now - last_xrt_diag_time >= 2.0:
++                        print(f"[xrtoolkit] {xrt_input.diagnostics()}", flush=True)
++                        last_xrt_diag_time = now
+             else:
+                 # --- Quest 3 path (unchanged) ---
+                 packet = recv_latest_packet(sock)
+@@ -857,7 +1062,9 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+                 last_log_time = now
+ 
+             # --- IK for arm ---
+-            if tracker.initialized:
++            ik_accepted = False
++            run_ik = tracker.initialized and (xrt_input is None or xrt_clutch_active)
++            if run_ik:
+                 q_sol_new = solve_pose_ik(
+                     model,
+                     ik_data,
+@@ -872,8 +1079,18 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+                     skip_tail_joints=config.get("skip_tail_joints", 0),
+                 )
+                 # 丢弃跳变解：任意关节变化超过 30° 则保持上一帧
+-                if np.max(np.abs(np.rad2deg(q_sol_new[:6] - q_sol[:6]))) < 30.0:
++                if np.isfinite(q_sol_new[:6]).all() and np.max(np.abs(np.rad2deg(q_sol_new[:6] - q_sol[:6]))) < 30.0:
+                     q_sol = q_sol_new
++                    ik_accepted = True
++
++            if bridge_preview is not None:
++                status = xrt_input.sample_status()
++                bridge_preview.observe(
++                    q_sol[:6], clutch_active=xrt_clutch_active,
++                    controller_valid=status["controller_valid"],
++                    head_valid=status["head_valid"], channel=clutch_channel,
++                    target_valid=not xrt_clutch_active or ik_accepted,
++                )
+ 
+             # --- Apply arm controls ---
+             if tracker.initialized:
+@@ -907,6 +1124,30 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+                     if latest_gripper_cmd is not None and gripper_actuator_id != -1:
+                         data.ctrl[gripper_actuator_id] = latest_gripper_cmd
+ 
++            if active_bridge is not None:
++                sample_status = xrt_input.sample_status()
++                fresh_target = (sample_status["controller_valid"] and sample_status["head_valid"] and
++                                (not xrt_clutch_active or ik_accepted))
++                clutch_source = args.bridge_loopback_clutch if loopback_bridge is not None else args.xrtoolkit_clutch
++                result = active_bridge.observe(
++                    q_sol[:6], clutch_value=(float(xrt_clutch_active) if follow_latch is not None else sample_status[clutch_source]),
++                    controller_age_s=sample_status["controller_age_s"],
++                    head_age_s=sample_status["head_age_s"],
++                    target_age_s=0.0 if fresh_target else float("inf"),
++                    ik_valid=not xrt_clutch_active or ik_accepted,
++                )
++                if follow_latch is not None and result.reason in ('controller_or_head_stale', 'ik_invalid_or_rejected'):
++                    follow_latch.update(0., valid=False)
++                if result.sync_sim_q_rad is not None or result.state not in ("ARMED", "ACTIVE"):
++                    if result.sync_sim_q_rad is not None:
++                        data.qpos[:6] = result.sync_sim_q_rad
++                        mujoco.mj_forward(model, data)
++                    data.qvel[:6] = 0.0
++                    data.ctrl[:6] = data.qpos[:6]
++                    q_sol[:6] = data.qpos[:6]
++                if result.state == "FAULT":
++                    raise RuntimeError(f"[bridge] fault: {result.reason}; simulation stopped")
++
+             # --- Step simulation ---
+             mujoco.mj_step(model, data)
+             vis.sync()
+@@ -915,7 +1156,6 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
+             if sleep_time > 0:
+                 time.sleep(sleep_time)
+ 
+-
+ # ---------------------------------------------------------------------------
+ # Aloha bimanual simulation loop
+ # ---------------------------------------------------------------------------
+@@ -1555,8 +1795,8 @@ def main() -> None:
+     parser.add_argument(
+         "--input-source",
+         default="quest3",
+-        choices=["quest3", "avp", "pico4"],
+-        help="Input device: quest3 (UDP, default), avp (Vision Pro), or pico4.",
++        choices=["quest3", "avp", "pico4", "xrtoolkit"],
++        help="Input device: quest3 (UDP, default), avp, pico4, or local XRoboToolkit adapter.",
+     )
+     parser.add_argument(
+         "--avp-ip",
+@@ -1592,9 +1832,93 @@ def main() -> None:
+         default=29888,
+         help="Pico 4 direct-mode UDP broadcast port.",
+     )
++    parser.add_argument(
++        "--xrtoolkit-hand",
++        default="left",
++        choices=["left", "right"],
++        help="Controller selected by the local XRoboToolkit adapter.",
++    )
++    parser.add_argument(
++        "--xrtoolkit-clutch",
++        default="auto",
++        choices=["auto", "grip", "trigger"],
++        help="XRoboToolkit analog control that must be held to follow (auto accepts grip or trigger).",
++    )
++    parser.add_argument(
++        "--xrtoolkit-clutch-threshold",
++        type=float,
++        default=0.55,
++        help="Clutch press threshold from 0 to 1.",
++    )
++    parser.add_argument(
++        "--view-forward-axis",
++        default=None,
++        choices=["+x", "-x"],
++        help="Map horizontal headset-forward at clutch-down to this RM65 base axis.",
++    )
++    parser.add_argument(
++        "--rm65-joint-snapshot",
++        type=Path,
++        default=Path(__file__).resolve().parent.parent / "config" / "rm65_current_pose.json",
++        help="Read-only joint-angle snapshot used as RM65 MuJoCo startup pose.",
++    )
++    parser.add_argument(
++        "--bridge-preview-log", type=Path, default=None,
++        help="Write offline bridge candidates to a new JSONL file; never connects to RM65.",
++    )
++    parser.add_argument(
++        "--bridge-preview-inventory", type=Path,
++        default=Path(__file__).resolve().parents[2] / "real_readonly_inventory.json",
++        help="Recorded read-only joint limits for offline bridge preview.",
++    )
++    parser.add_argument(
++        "--bridge-loopback-log", type=Path, default=None,
++        help="Exercise the old sender against a synthetic localhost-only controller; no robot connection.",
++    )
++    parser.add_argument(
++        "--bridge-loopback-clutch", choices=["grip", "trigger"], default="grip",
++        help="One explicit clutch source for the localhost-only bridge exercise.",
++    )
++    parser.add_argument(
++        "--bridge-real", default=None, metavar="HOST:PORT",
++        help="Explicitly connect the guarded RM65 joint bridge. No gripper output.",
++    )
++    parser.add_argument(
++        "--bridge-real-log", type=Path, default=None,
++        help="New JSONL log path for the guarded RM65 bridge.",
++    )
+     args = parser.parse_args()
+ 
+-    config = ROBOT_CONFIGS[args.robot]
++    if args.bridge_real:
++        if args.robot != "rm65" or args.input_source != "xrtoolkit":
++            parser.error("--bridge-real requires --robot rm65 --input-source xrtoolkit")
++        if args.xrtoolkit_clutch != "grip":
++            parser.error("--bridge-real uses the left grip to toggle following")
++        if args.view_forward_axis is None:
++            parser.error("--bridge-real requires explicit --view-forward-axis +x or -x")
++        if args.bridge_loopback_log or args.bridge_preview_log:
++            parser.error("--bridge-real cannot run with offline bridge modes")
++    if args.view_forward_axis is None:
++        args.view_forward_axis = "+x"
++
++    config = {**ROBOT_CONFIGS[args.robot]}
++
++    if args.xrtoolkit_clutch_threshold < 0.0 or args.xrtoolkit_clutch_threshold > 1.0:
++        parser.error("--xrtoolkit-clutch-threshold must be within [0, 1]")
++
++    if args.robot == "rm65" and args.rm65_joint_snapshot and args.rm65_joint_snapshot.is_file():
++        snapshot = json.loads(args.rm65_joint_snapshot.read_text(encoding="utf-8"))
++        joint_deg = np.asarray(snapshot.get("joint_deg"), dtype=np.float64)
++        if joint_deg.shape != (6,) or not np.all(np.isfinite(joint_deg)):
++            parser.error(f"Invalid six-joint snapshot: {args.rm65_joint_snapshot}")
++        config["home_qpos"] = np.deg2rad(joint_deg)
++        print(
++            f"RM65 MuJoCo initial scene posture from {args.rm65_joint_snapshot}: "
++            f"{np.round(joint_deg, 3).tolist()} deg "
++            + ("(real mode will replace this with live measured joints; no startup move)"
++               if args.bridge_real else "(snapshot only; no hardware command)"),
++            flush=True,
++        )
+ 
+     # Apply defaults from config if user didn't override
+     if args.scene is None:

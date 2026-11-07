@@ -1,0 +1,12 @@
+{
+  "name": "User-confirmed RM65 hand-guided baseline",
+  "date_local": "2026-10-21",
+  "source": "Read from physical controller after user confirmed this pose as baseline",
+  "real_addr": "192.168.1.18:8080",
+  "joint_mdh_deg": [-1.524, 11.988, 76.758, -1.506, 66.292, 1.641],
+  "joint_controller_deg": [-1.524, -11.988, -76.758, -1.506, -66.292, 1.641],
+  "controller_pose_m_rad": [0.323641, -0.012077, 0.365091, 3.125, -0.436, -0.046],
+  "arm_err": 0,
+  "sys_err": 0,
+  "auto_move_to_baseline": false
+}

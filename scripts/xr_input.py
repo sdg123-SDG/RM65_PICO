@@ -69,6 +69,10 @@ class ControllerSample:
     left_valid: bool = False
     raw_stamp_ns: int = 0
     headset_stamp: float = 0.0
+    right_trigger: float = 0.0
+    right_valid: bool = False
+    right_stamp: float = 0.0
+    right_trigger_valid: bool = False
 
 
 def _pose_csv_to_pos_quat(pose_csv: str) -> tuple[np.ndarray, np.ndarray]:
@@ -401,6 +405,12 @@ class XRoboToolkitInput:
             left_valid=left_valid,
             raw_stamp_ns=stamp_ns,
             headset_stamp=head_stamp,
+            right_valid=right_valid,
+            right_stamp=right_stamp,
+            # Button/trigger packets are useful even if the other controller's
+            # pose is not tracked. Do not gate a trigger on a valid pose.
+            right_trigger=rt if right_fresh else 0.0,
+            right_trigger_valid=right_fresh,
         )
 
     @property

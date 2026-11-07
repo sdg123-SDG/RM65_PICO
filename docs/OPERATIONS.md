@@ -1,5 +1,7 @@
 # 操作手册
 
+当前 start.bat 默认启动新版 vdo-rm65b 原生会话，提供 pico on/off/status、原生 CLI 与相机。旧环境的回放命令不用于新版轨迹复现，其他手柄/网络操作沿用。见 [新版适配说明](VDO_MIGRATION.md)。
+
 遥操链路为：PICO 左手柄 → 头显 XRoboToolkit → 局域网 → 电脑 PC Service → MuJoCo。头显通过电脑 IP 连接，运行时无需 USB；USB/ADB 仅是首次安装 APK 的可选方式。
 
 ## 开始与退出

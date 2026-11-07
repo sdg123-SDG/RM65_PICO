@@ -1,0 +1,38 @@
+{
+  "sim_joint_rad": [
+    0.012793263417118436,
+    -0.7763573578721177,
+    -0.7749436411780023,
+    -0.17601645506362815,
+    -1.712220356083997,
+    -0.06588617926278593
+  ],
+  "controller_candidate_deg": [
+    0.7330000000000001,
+    -44.482,
+    -44.401,
+    -10.085,
+    -98.103,
+    -3.775
+  ],
+  "latest_transport_internal_deg": [
+    0.7330000000000001,
+    44.482,
+    44.401,
+    -10.085,
+    98.103,
+    -3.775
+  ],
+  "wire_candidate_millideg": [
+    733,
+    -44482,
+    -44401,
+    -10085,
+    -98103,
+    -3775
+  ],
+  "network_io": false,
+  "motion_commands": false,
+  "inventory_created_utc": "2026-10-31T06:20:39.207871+00:00",
+  "assumption": "Upstream simulated joint coordinates equal controller raw joints; observed in two recorded poses, not verified for hardware motion."
+}

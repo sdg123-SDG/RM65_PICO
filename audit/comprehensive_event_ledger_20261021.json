@@ -1,0 +1,69 @@
+[
+  {
+    "file": "latest_20261021_173400_843799.jsonl",
+    "frames": 25,
+    "hold_requests": 1,
+    "stable_holds": 0,
+    "faults": [],
+    "invalid_rx": [],
+    "min_interframe_s": 0.0309999999375,
+    "max_interframe_s": 0.4370000000625,
+    "unparsed_log_lines": 0
+  },
+  {
+    "file": "latest_20261021_175153_039050.jsonl",
+    "frames": 36,
+    "hold_requests": 0,
+    "stable_holds": 0,
+    "faults": [
+      "Extra data: line 1 column 2 (char 1)"
+    ],
+    "invalid_rx": [
+      "2, '}' expected near end of file\r"
+    ],
+    "min_interframe_s": 0.0059997,
+    "max_interframe_s": 0.0429986,
+    "unparsed_log_lines": 0
+  },
+  {
+    "file": "latest_20261021_175532_463262.jsonl",
+    "frames": 297,
+    "hold_requests": 1,
+    "stable_holds": 0,
+    "faults": [
+      "Hold unconfirmed: no matched ACK and stable feedback within 1s"
+    ],
+    "invalid_rx": [],
+    "min_interframe_s": 0.0029349,
+    "max_interframe_s": 0.0458892,
+    "unparsed_log_lines": 0
+  },
+  {
+    "file": "latest_20261021_175819_933196.jsonl",
+    "frames": 576,
+    "hold_requests": 4,
+    "stable_holds": 3,
+    "faults": [
+      "Extra data: line 1 column 2 (char 1)"
+    ],
+    "invalid_rx": [
+      "1, string or '}' expected near '{'\r"
+    ],
+    "min_interframe_s": 0.0010398,
+    "max_interframe_s": 5.0023105,
+    "unparsed_log_lines": 0
+  },
+  {
+    "file": "latest_20261021_180344_796607.jsonl",
+    "frames": 713,
+    "hold_requests": 6,
+    "stable_holds": 5,
+    "faults": [
+      "Hold unconfirmed: feedback stale while awaiting hold"
+    ],
+    "invalid_rx": [],
+    "min_interframe_s": 0.0020165,
+    "max_interframe_s": 6.9534006,
+    "unparsed_log_lines": 0
+  }
+]

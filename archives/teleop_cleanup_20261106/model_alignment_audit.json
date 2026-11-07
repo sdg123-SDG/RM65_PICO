@@ -1,0 +1,90 @@
+{
+  "network_io": false,
+  "motion_commands": false,
+  "note": "Comparison of recorded poses only; this does not establish a safe live conversion or a calibrated gripper TCP.",
+  "max_offset_spread_mm": 0.014791853807950117,
+  "snapshots": [
+    {
+      "source": "E:\\SDG-VLA\\RM65_PICO\\experiments\\vr_teleop_rm65_pico_sim\\real_readonly_inventory.json",
+      "created_utc": "2026-10-31T06:20:39.207871+00:00",
+      "controller_joint_deg": [
+        0.733,
+        -44.482,
+        -44.401,
+        -10.085,
+        -98.103,
+        -3.775
+      ],
+      "controller_tcp_m": [
+        0.372075,
+        -0.020187,
+        0.286618
+      ],
+      "controller_rpy_rad": [
+        2.972,
+        0.131,
+        0.053
+      ],
+      "tool_and_work_frames_zero": true,
+      "upstream_link6_position_error_mm": 28.603663341409106,
+      "upstream_link6_rotation_error_deg": 0.03382553060951512,
+      "controller_tcp_in_upstream_link6_mm": [
+        -0.005308488994115474,
+        0.00045666599441177014,
+        -28.60366284516849
+      ],
+      "upstream_pinch_site_to_controller_tcp_mm": 173.60366292693118,
+      "vdo_fk_candidates": {
+        "controller_raw": {
+          "position_error_mm": 0.10405246486547472,
+          "rotation_error_deg": 0.033800533157080384
+        },
+        "axis_sign_applied": {
+          "position_error_mm": 745.237287773974,
+          "rotation_error_deg": 24.49281217591783
+        }
+      }
+    },
+    {
+      "source": "E:\\SDG-VLA\\RM65_PICO\\logs\\real\\exit_readonly_20261031.json",
+      "created_utc": "2026-10-31T04:39:24.096566+00:00",
+      "controller_joint_deg": [
+        3.795,
+        -48.227,
+        -39.553,
+        -16.846,
+        -105.304,
+        -4.829
+      ],
+      "controller_tcp_m": [
+        0.369809,
+        -0.015777,
+        0.284957
+      ],
+      "controller_rpy_rad": [
+        2.859,
+        0.241,
+        0.07
+      ],
+      "tool_and_work_frames_zero": true,
+      "upstream_link6_position_error_mm": 28.590738042918566,
+      "upstream_link6_rotation_error_deg": 0.04158456261759327,
+      "controller_tcp_in_upstream_link6_mm": [
+        -0.0022662694440711215,
+        -0.0060605726282169856,
+        -28.590737310749333
+      ],
+      "upstream_pinch_site_to_controller_tcp_mm": 173.5907374313391,
+      "vdo_fk_candidates": {
+        "controller_raw": {
+          "position_error_mm": 0.09121749549105398,
+          "rotation_error_deg": 0.04155711168883549
+        },
+        "axis_sign_applied": {
+          "position_error_mm": 740.2752383584099,
+          "rotation_error_deg": 42.303199536990036
+        }
+      }
+    }
+  ]
+}

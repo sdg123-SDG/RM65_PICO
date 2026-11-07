@@ -1,0 +1,10 @@
+{
+  "scripts/latest_bridge.py": "279e07d1e9262cddb39b42edcd9f88e92602ba04888c7bd2fa1a1501b6357bc0",
+  "scripts/real_pico_guard.py": "ab4a3317291ae62b3767554ee2c5097f380d4f53021d13f13704ae4a853453eb",
+  "scripts/launch_vdo_pico_real.py": "1437b3ced0831da58410183294eae7a7ac533b9a286edd7328cdf4457978e007",
+  "scripts/test_latest_bridge.py": "4e9f0c8f943919d7fe7cad355249b12b6fcbb36aaf85743ddafb697c38cf53f8",
+  "scripts/test_native_windows_guard.py": "e04e3107dc4546db3e26cb9912d03f5b01d7bfd7a5825fe505d32b322c9638c6",
+  "docs/AUDIT_COMPREHENSIVE_20261021.md": "cf754857690d39e058252d0a62a7309ab42f29dcab2c6ae4dfed4e5804104e00",
+  "docs/LATEST_BRIDGE.md": "9721d7f2ee0b94efb55cc18099fd8c3af1c3c97094e34889d22457edd3513f54",
+  "logs/offline_comprehensive_audit.txt": "5438d55bc6b3a9fc4d16608c8fb73f479a5dab0993a08628eb0c6366b4e8a56e"
+}

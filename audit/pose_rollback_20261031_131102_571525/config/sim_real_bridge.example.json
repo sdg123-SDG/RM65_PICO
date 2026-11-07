@@ -1,0 +1,16 @@
+{
+  "real_addr": "192.168.1.18:8080",
+  "camera": "d435i",
+  "robot_forward": "+X",
+  "wrist_mode": "position",
+  "feedback_seed": false,
+  "linear_speed_m_s": 0.01,
+  "scale": 0.3,
+  "max_joint_step_deg": 10.0,
+  "replay_delay_s": 0.0,
+  "max_replay_lag_s": 0.5,
+  "max_following_error_deg": 2.0,
+  "state_timeout_s": 0.5,
+  "max_stream_gap_s": 0.25,
+  "gripper_enabled": true
+}

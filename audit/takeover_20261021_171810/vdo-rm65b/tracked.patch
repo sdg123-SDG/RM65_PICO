@@ -1,0 +1,534 @@
+diff --git a/launch_rm65_box_cli.py b/launch_rm65_box_cli.py
+index f6b2c40..5d5682c 100644
+--- a/launch_rm65_box_cli.py
++++ b/launch_rm65_box_cli.py
+@@ -125,6 +125,8 @@ def main(
+     camera: str = "none",
+     real: str = "",
+     require_real: bool = False,
++    controller_factory=None,
++    controller_name: str = "xbox",
+     description: str = "RM65 桌面+木箱场景 + CLI / HTTP 指令通道",
+ ) -> int:
+     parser = argparse.ArgumentParser(description=description)
+@@ -240,7 +242,9 @@ def main(
+     cam_view = WristCamView(model, data, box.camera)
+     arm.PathBindTrail(trail)
+     arm.PathBindGizmos(gizmos)
+-    xbox = XboxEeServo(arm)
++    xbox = controller_factory(arm) if controller_factory is not None else XboxEeServo(arm)
++    if hasattr(xbox, "attach_scene_overlay"):
++        xbox.attach_scene_overlay(overlay)
+     executor = ArmCommandExecutor(arm, scene=box)
+     recorder = TrajectoryRecorder(
+         arm,
+@@ -319,7 +323,7 @@ def main(
+     def _run_user_loop() -> None:
+         if args.no_cli:
+             print("[http] --no-cli：等待请求，Ctrl+C 退出", flush=True)
+-            while True:
++            while not session.stop.is_set():
+                 time.sleep(0.2)
+             return
+         shell.run()
+@@ -330,6 +334,8 @@ def main(
+         try:
+             xbox.handle_cli(["on"])
+         except Exception as exc:
++            if controller_factory is not None:
++                raise
+             print(f"[xbox] 未能自动打开: {exc}", flush=True)
+ 
+     print(f"Loaded {scene}")
+@@ -360,6 +366,7 @@ def main(
+             return 0
+ 
+     started_viewer = False
++    exit_status = 0
+     try:
+         if args.headless:
+             if xbox_on:
+@@ -390,6 +397,7 @@ def main(
+         return 0
+     except Exception as exc:
+         print(f"ERROR: {exc}", file=sys.stderr)
++        exit_status = 1
+         return 1
+     finally:
+         try:
+@@ -399,13 +407,18 @@ def main(
+             pass
+         try:
+             session.shutdown()
+-        except Exception:
+-            pass
++        except Exception as exc:
++            exit_status = 1
++            print(f"ERROR: session shutdown was not confirmed: {exc}", file=sys.stderr, flush=True)
++        controller_error = getattr(xbox, "error", None)
++        if controller_error:
++            exit_status = 1
++            print(f"ERROR: controller stopped: {controller_error}", file=sys.stderr, flush=True)
+         if protect is not None:
+             protect.close()
+         restore_cooked_tty()
+         if started_viewer:
+-            os._exit(0)
++            os._exit(exit_status)
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/real/heartbeat.py b/real/heartbeat.py
+index e422cf3..9ff60af 100644
+--- a/real/heartbeat.py
++++ b/real/heartbeat.py
+@@ -6,17 +6,46 @@ import json
+ import os
+ import threading
+ import time
++import tempfile
+ from pathlib import Path
+ from typing import Any
+ 
+ __all__ = ["DEFAULT_PATH", "Heartbeat", "pid_alive", "read_heartbeat"]
+ 
+-DEFAULT_PATH = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "vdo-rm65b-real.hb"
++DEFAULT_PATH = Path(os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir()) / "vdo-rm65b-real.hb"
+ 
+ 
+ def pid_alive(pid: int) -> bool:
+     if int(pid) <= 0:
+         return False
++    if os.name == "nt":
++        # os.kill(pid, 0) is NOT a harmless probe on Windows: it can call
++        # TerminateProcess. Query the exit code without signalling the process.
++        import ctypes
++        from ctypes import wintypes
++
++        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
++        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
++        kernel.OpenProcess.restype = wintypes.HANDLE
++        kernel.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
++        kernel.GetExitCodeProcess.restype = wintypes.BOOL
++        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
++        kernel.CloseHandle.restype = wintypes.BOOL
++        handle = kernel.OpenProcess(0x1000, False, int(pid))
++        if not handle:
++            error = ctypes.get_last_error()
++            if error == 87:
++                return False
++            if error == 5:
++                return True
++            raise OSError(error, "Cannot query process liveness")
++        try:
++            code = wintypes.DWORD()
++            if not kernel.GetExitCodeProcess(handle, ctypes.byref(code)):
++                raise ctypes.WinError(ctypes.get_last_error())
++            return code.value == 259
++        finally:
++            kernel.CloseHandle(handle)
+     try:
+         os.kill(int(pid), 0)
+     except ProcessLookupError:
+diff --git a/real/json_link.py b/real/json_link.py
+index 4b41e5c..77d7833 100644
+--- a/real/json_link.py
++++ b/real/json_link.py
+@@ -21,6 +21,7 @@ _MOTION_CMDS = frozenset(
+         "set_ort_step",
+         "movej_canfd",
+         "movep_canfd",
++        "set_gripper_position",
+     }
+ )
+ 
+@@ -45,6 +46,29 @@ class JsonArmLink:
+         self._sock.settimeout(float(timeout_s))
+         self._lock = threading.Lock()
+         self._buf = bytearray()
++        self.last_arm_state_received = 0.0
++        self.last_gripper_rpc = None
++        self.last_movej_rpc = None
++
++    def send_stream(self, payload: dict[str, Any], *, timeout_s: float = 0.1) -> None:
++        """Bounded send-only CANFD frame; uses the same socket/parser lock.
++
++        This confirms local sending, not controller acknowledgement or motion.
++        """
++        if payload.get("command") not in {"movej_canfd", "movep_canfd"}:
++            raise ValueError("send_stream only accepts CANFD motion frames")
++        line=json.dumps(payload,separators=(",",":"),allow_nan=False).encode()+b"\r\n"
++        if not self._lock.acquire(timeout=timeout_s):
++            raise TimeoutError("Controller stream lock deadline exceeded")
++        try:
++            previous=self._sock.gettimeout()
++            try:
++                self._sock.settimeout(timeout_s)
++                self._sock.sendall(line)
++            finally:
++                self._sock.settimeout(previous)
++        finally:
++            self._lock.release()
+ 
+     @classmethod
+     def connect(cls, host: str, port: int, *, timeout_s: float = 8.0) -> JsonArmLink:
+@@ -90,10 +114,18 @@ class JsonArmLink:
+         line = json.dumps(payload, separators=(",", ":")).encode("utf-8") + b"\r\n"
+         cmd = str(payload.get("command") or "")
+         skip_state = cmd in _MOTION_CMDS
++        gripper = cmd == "set_gripper_position"
++        movej = cmd == "movej"
++        if gripper:
++            self.last_gripper_rpc = {"request": dict(payload), "reply": None, "skipped": []}
++        if movej:
++            self.last_movej_rpc = {"request": dict(payload), "reply": None, "skipped": []}
+         with self._lock:
+             prev = self._sock.gettimeout()
+             deadline = None if timeout_s is None else time.monotonic() + float(timeout_s)
+             try:
++                if deadline is not None:
++                    self._sock.settimeout(max(1e-6,deadline-time.monotonic()))
+                 self._sock.sendall(line)
+                 while True:
+                     if deadline is not None:
+@@ -102,13 +134,37 @@ class JsonArmLink:
+                             raise TimeoutError("timed out")
+                         self._sock.settimeout(left)
+                     msg = self._recv_json_locked()
++                    if movej:
++                        # A queued CANFD joint_state is not the movej ACK.
++                        matched=(msg.get('command')=='movej' or 'movej' in msg or
++                                 ('command' not in msg and 'receive_state' in msg) or
++                                 (msg.get('state')=='current_trajectory_state' and
++                                  msg.get('trajectory_state') is True))
++                        if not matched:
++                            self.last_movej_rpc['skipped']=(self.last_movej_rpc['skipped']+[msg])[-16:]
++                            continue
++                        self.last_movej_rpc['reply']=msg
++                    if gripper:
++                        # CANFD acknowledgements/trajectory events may remain on
++                        # this shared stream. They are NOT a gripper rejection.
++                        if msg.get("command") not in {"set_gripper", "set_gripper_position"}:
++                            self.last_gripper_rpc["skipped"] = (self.last_gripper_rpc["skipped"] + [msg])[-16:]
++                            continue
++                        self.last_gripper_rpc["reply"] = msg
+                     if skip_state and msg.get("state") == "current_arm_state":
+                         continue
+                     if cmd == "get_current_arm_state":
+                         if msg.get("state") == "current_arm_state" or "arm_state" in msg:
++                            self.last_arm_state_received = time.monotonic()
+                             return msg
+                         continue
+                     return msg
++            except Exception as exc:
++                if movej:
++                    self.last_movej_rpc['error']=f'{type(exc).__name__}: {exc}'
++                if gripper:
++                    self.last_gripper_rpc["error"] = f"{type(exc).__name__}: {exc}"
++                raise
+             finally:
+                 self._sock.settimeout(prev)
+ 
+diff --git a/real/json_plant.py b/real/json_plant.py
+index f98ca22..a06310f 100644
+--- a/real/json_plant.py
++++ b/real/json_plant.py
+@@ -116,6 +116,13 @@ class RealPlant:
+         msg = self.link.rpc(_payload_mdh_to_ctrl(payload), timeout_s=timeout_s)
+         return _msg_ctrl_to_mdh(msg)
+ 
++    def send_stream(self, payload: dict[str, Any]) -> int:
++        try:
++            self.link.send_stream(_payload_mdh_to_ctrl(payload), timeout_s=0.1)
++        except Exception:
++            return CONTROLLER_DATE_RETURN_FALSE
++        return SYS_NORMAL
++
+     def canfd(self, joint_deg: Sequence[float], *, follow: bool = False) -> int:
+         try:
+             msg = self.rpc(
+@@ -142,7 +149,7 @@ class RealPlant:
+             return CONTROLLER_DATE_RETURN_FALSE
+         return reply_code(msg, "movej_canfd")
+ 
+-    def leave_passthrough(self, joint_deg: Sequence[float]) -> int:
++    def leave_passthrough(self, joint_deg: Sequence[float], *, confirmed: bool = False) -> int:
+         """当前角发控制器 ``movej``，把伺服从 CANFD 切回规划保持。"""
+         arr = np.asarray(joint_deg, dtype=np.float64).reshape(-1)
+         if arr.shape[0] != 6 or not np.all(np.isfinite(arr)):
+@@ -159,9 +166,14 @@ class RealPlant:
+                 timeout_s=3.0,
+             )
+         except TimeoutError:
+-            return SYS_NORMAL
++            return CONTROLLER_DATE_RETURN_FALSE if confirmed else SYS_NORMAL
+         except Exception:
+             return CONTROLLER_DATE_RETURN_FALSE
++        if confirmed:
++            accepted=(msg.get('movej') is True or msg.get('receive_state') is True or
++                      (msg.get('command')=='movej' and msg.get('state') is True) or
++                      (msg.get('state')=='current_trajectory_state' and msg.get('trajectory_state') is True))
++            return SYS_NORMAL if accepted else CONTROLLER_DATE_RETURN_FALSE
+         return reply_code(msg, "movej")
+ 
+     def recv_followup(self, *, timeout_s: float | None = None) -> dict[str, Any] | None:
+diff --git a/real/json_policy.py b/real/json_policy.py
+index 0a4364c..11857f0 100644
+--- a/real/json_policy.py
++++ b/real/json_policy.py
+@@ -56,17 +56,19 @@ class JsonMotionPolicy:
+             return CONTROLLER_DATE_RETURN_FALSE
+         return reply_code(msg, name)
+ 
+-    def canfd_deg(self, joint_deg: Sequence[float], *, follow: bool = False) -> int:
++    def canfd_deg(self, joint_deg: Sequence[float], *, follow: bool = False, stream_no_reply: bool = False) -> int:
+         self._canfd_open = True
++        if stream_no_reply:
++            return self.plant.send_stream({"command":"movej_canfd","joint":encode_joint_deg(joint_deg),"follow":False})
+         return int(self.plant.canfd(joint_deg, follow=follow))
+ 
+-    def leave_passthrough(self) -> int:
++    def leave_passthrough(self, *, confirmed: bool = False) -> int:
+         """到位后发当前角 ``movej``，退出 CANFD，避免进程异常退出时仍停在透传环。"""
+         if not self._canfd_open:
+             return SYS_NORMAL
+         q = self.ref_joint_deg()
+         try:
+-            code = int(self.plant.leave_passthrough(q))
++            code = int(self.plant.leave_passthrough(q, confirmed=True) if confirmed else self.plant.leave_passthrough(q))
+         except Exception:
+             return CONTROLLER_DATE_RETURN_FALSE
+         if code == SYS_NORMAL:
+@@ -209,8 +211,10 @@ class JsonMotionPolicy:
+         }
+         return self.remote_motion(payload, "movej", lambda: self.wait_joints(arr), block)
+ 
+-    def movep_canfd(self, pose: ArmPose) -> int:
++    def movep_canfd(self, pose: ArmPose, *, stream_no_reply: bool = False) -> int:
+         self._canfd_open = True
++        if stream_no_reply:
++            return self.plant.send_stream({"command":"movep_canfd","pose":encode_pose(pose),"follow":False})
+         return self.rpc_cmd(
+             {
+                 "command": "movep_canfd",
+diff --git a/real/protect.py b/real/protect.py
+index 97f96cf..42ac125 100644
+--- a/real/protect.py
++++ b/real/protect.py
+@@ -32,11 +32,15 @@ def spawn_arm_guard(*, addr: str, heartbeat: Path, pid: int) -> subprocess.Popen
+         "--pid",
+         str(int(pid)),
+     ]
++    process_options = (
++        {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW}
++        if os.name == "nt" else {"start_new_session": True}
++    )
+     try:
+         proc = subprocess.Popen(
+             cmd,
+             cwd=str(_HERE),
+-            start_new_session=True,
++            **process_options,
+             stdout=None,
+             stderr=None,
+         )
+diff --git a/real/real_arm.py b/real/real_arm.py
+index dd19b30..3b1b50f 100644
+--- a/real/real_arm.py
++++ b/real/real_arm.py
+@@ -154,7 +154,7 @@ class JsonMotionArm(Rm65ExtArm):
+             return ILLEGAL_INPUT
+         return self.policy.movej_p(tgt, v, block)
+ 
+-    def Movej_CANFD(self, joint: Sequence[float]) -> int:
++    def Movej_CANFD(self, joint: Sequence[float], *, stream_no_reply: bool = False) -> int:
+         g = self._gate()
+         if g != SYS_NORMAL:
+             return g
+@@ -170,7 +170,7 @@ class JsonMotionArm(Rm65ExtArm):
+         self._stream = False
+         try:
+             Rm65ExtArm.set_q(self, np.deg2rad(arr) + self._zero_rad)
+-            return self.policy.canfd_deg(arr, follow=False)
++            return self.policy.canfd_deg(arr, follow=False, stream_no_reply=True) if stream_no_reply else self.policy.canfd_deg(arr, follow=False)
+         finally:
+             self._stream = prev
+ 
+@@ -181,6 +181,7 @@ class JsonMotionArm(Rm65ExtArm):
+         weights: Sequence[float] | None = None,
+         mask: Sequence[bool | int] | None = None,
+         position_only: bool = False,
++        stream_no_reply: bool = False,
+     ) -> int:
+         del weights, mask, position_only
+         g = self._gate()
+@@ -194,7 +195,7 @@ class JsonMotionArm(Rm65ExtArm):
+         prev = self._stream
+         self._stream = False
+         try:
+-            return self.policy.movep_canfd(tgt)
++            return self.policy.movep_canfd(tgt, stream_no_reply=stream_no_reply)
+         finally:
+             self._stream = prev
+ 
+@@ -273,10 +274,10 @@ class JsonMotionArm(Rm65ExtArm):
+         except Exception:
+             pass
+ 
+-    def leave_passthrough(self) -> int:
++    def leave_passthrough(self, *, confirmed: bool = False) -> int:
+         if self.policy is None:
+             return SYS_NORMAL
+-        return self.policy.leave_passthrough()
++        return self.policy.leave_passthrough(confirmed=confirmed)
+ 
+     def Move_Pause_Cmd(self, block: bool = True) -> int:
+         del block
+@@ -325,9 +326,21 @@ class JsonMotionArm(Rm65ExtArm):
+             "gripper_pick_on",
+         )
+ 
+-    def Set_Gripper_Position(self, position: int, block: bool = True) -> int:
+-        del block
++    def Set_Gripper_Position(self, position: int, block: bool = True, *, canonical: bool = False) -> int:
+         assert self.policy is not None
++        if canonical:
++            payload={"command":"set_gripper_position","position":int(position),"block":bool(block)}
++            self.last_gripper_command={"request":payload,"reply":None,"accepted":False}
++            try:
++                msg=self.plant.rpc(payload,timeout_s=0.25)
++            except Exception as exc:
++                self.last_gripper_command["error"]=f"{type(exc).__name__}: {exc}"
++                self.last_gripper_command["transport"]=getattr(self.link,"last_gripper_rpc",None)
++                return CONTROLLER_DATE_RETURN_FALSE
++            accepted=msg.get('command') in {'set_gripper','set_gripper_position'} and msg.get('state') is True
++            self.last_gripper_command.update(reply=msg,accepted=accepted)
++            self.last_gripper_command["transport"]=getattr(self.link,"last_gripper_rpc",None)
++            return SYS_NORMAL if accepted else CONTROLLER_DATE_RETURN_FALSE
+         return self.policy.rpc_cmd(
+             {"command": "gripper_position", "position": int(position)},
+             "gripper_position",
+diff --git a/simu/cli.py b/simu/cli.py
+index 2e86fb0..4672c0e 100644
+--- a/simu/cli.py
++++ b/simu/cli.py
+@@ -133,6 +133,19 @@ def _read_key(fd: int) -> str:
+     """阻塞读一个按键（含方向键）。``os.read`` 在 C 层释放 GIL。"""
+     import select
+ 
++    if os.name == "nt":
++        import msvcrt
++        while not msvcrt.kbhit():
++            time.sleep(0.02)
++        key = msvcrt.getwch()
++        if key in ("\x00", "\xe0"):
++            key = msvcrt.getwch()
++            return {"H": "\x1b[A", "P": "\x1b[B", "M": "\x1b[C", "K": "\x1b[D",
++                    "G": "\x1b[H", "O": "\x1b[F", "S": "\x1b[3~"}.get(key, "")
++        if key == "\x03":
++            raise KeyboardInterrupt
++        return "\x04" if key == "\x1a" else key
++
+     b = os.read(fd, 1)
+     if not b:
+         raise EOFError
+@@ -168,15 +181,16 @@ def _paint_line(prompt: str, buf: list[str], cursor: int) -> None:
+ 
+ def _edit_line(prompt: str, history: list[str]) -> str:
+     """主线程行编辑：↑↓ 历史、←→ 改行。不把 GNU readline 丢到后台线程。"""
+-    import termios
+-
+     fd = sys.stdin.fileno()
+-    saved = termios.tcgetattr(fd)
+-    mode = termios.tcgetattr(fd)
+-    mode[3] &= ~(termios.ICANON | termios.ECHO)
+-    mode[6][termios.VMIN] = 1
+-    mode[6][termios.VTIME] = 0
+-    termios.tcsetattr(fd, termios.TCSADRAIN, mode)
++    saved = None
++    if os.name != "nt":
++        import termios
++        saved = termios.tcgetattr(fd)
++        mode = termios.tcgetattr(fd)
++        mode[3] &= ~(termios.ICANON | termios.ECHO)
++        mode[6][termios.VMIN] = 1
++        mode[6][termios.VTIME] = 0
++        termios.tcsetattr(fd, termios.TCSADRAIN, mode)
+     buf: list[str] = []
+     cursor = 0
+     idx = len(history)
+@@ -231,7 +245,8 @@ def _edit_line(prompt: str, history: list[str]) -> str:
+                 continue
+             _paint_line(prompt, buf, cursor)
+     finally:
+-        termios.tcsetattr(fd, termios.TCSADRAIN, saved)
++        if saved is not None:
++            termios.tcsetattr(fd, termios.TCSADRAIN, saved)
+ 
+ 
+ def _read_cli_line(prompt: str, history: list[str]) -> str:
+diff --git a/simu/rm65_arm.py b/simu/rm65_arm.py
+index 7ea9d74..4287adb 100644
+--- a/simu/rm65_arm.py
++++ b/simu/rm65_arm.py
+@@ -1585,7 +1585,7 @@ class Rm65Arm:
+         kin = self.kin
+         tgt_kin = _pose_to_kin(tgt)
+         saved = (kin.pos_tol, kin.rot_tol, kin.damping, kin.step_scale)
+-        kin.pos_tol = 1e-3
++        kin.pos_tol = float(getattr(self, "_pico_pos_tol", 1e-3))
+         kin.rot_tol = 2e-2
+         kin.damping = _movep_damping(q_keep)
+         kin.step_scale = 1.0
+@@ -1620,7 +1620,7 @@ class Rm65Arm:
+         if _movep_task_m(pos_new, rot_new) > _movep_task_m(pos_seed, rot_seed) + 1e-6:
+             return CONTROLLER_DATE_RETURN_FALSE
+         if float(np.max(np.abs(q_sol - q_keep))) < 1e-8:
+-            if pos_seed > 1e-3 or rot_seed > 2e-2:
++            if pos_seed > float(getattr(self, "_pico_pos_tol", 1e-3)) or rot_seed > 2e-2:
+                 return CONTROLLER_DATE_RETURN_FALSE
+         lo, hi = kin.q_min, kin.q_max
+         self.set_q(np.clip(q_sol, lo, hi))
+diff --git a/simu/session.py b/simu/session.py
+index ec4a06f..f96ef11 100644
+--- a/simu/session.py
++++ b/simu/session.py
+@@ -134,6 +134,11 @@ drive 时 rm65-state 仍刷新 status 信箱，但不再盖住画面关节。
+         self._ui_last_deg: np.ndarray | None = None
+         if self.world_mode == "mirror":
+             setattr(self.arm, "mirror_meas", True)
++        self.display_arm = getattr(xbox, "display_arm", None)
++        if self.display_arm is not None:
++            # PICO owns the simulated source; measured real state stays in its
++            # mailbox and must never overwrite source qpos/ctrl.
++            setattr(self.arm, "mirror_meas", False)
+ 
+     def start_http(self, server) -> None:
+         self.http_server = server
+@@ -387,6 +392,8 @@ drive 时 rm65-state 仍刷新 status 信箱，但不再盖住画面关节。
+         return from_q
+ 
+     def _mirror_qpos(self) -> None:
++        if self.display_arm is not None:
++            return
+         st = self.arm_state.get()
+         if st is None:
+             return
+@@ -411,7 +418,7 @@ drive 时 rm65-state 仍刷新 status 信箱，但不再盖住画面关节。
+         import mujoco
+ 
+         viewer = self.viewer
+-        arm = self.arm
++        arm = self.display_arm if self.display_arm is not None else self.arm
+         model = self.model
+         data = self.data
+         xbox = self.xbox
+@@ -486,7 +493,7 @@ drive 时 rm65-state 仍刷新 status 信箱，但不再盖住画面关节。
+     def shutdown(self) -> None:
+         signal.signal(signal.SIGINT, _hard_sigint)
+         self.stop.set()
+-        if self.world_mode == "mirror":
++        if self.world_mode == "mirror" and self.display_arm is None:
+             self.ui_mode = "mirror"
+             setattr(self.arm, "mirror_meas", True)
+         setattr(self.arm, "_stream", False)

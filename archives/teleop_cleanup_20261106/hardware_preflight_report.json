@@ -1,0 +1,34 @@
+{
+  "source": "E:\\SDG-VLA\\RM65_PICO\\experiments\\vr_teleop_rm65_pico_sim\\real_readonly_inventory.json",
+  "inventory_created_utc": "2026-10-31T06:20:39.207871+00:00",
+  "offline_geometry_and_joint_checks_passed": true,
+  "live_feedback_freshness_checked": false,
+  "real_motion_tested": false,
+  "offline_validator_opened_robot_connection": false,
+  "joint_deg_controller_raw": [
+    0.733,
+    -44.482,
+    -44.401,
+    -10.085,
+    -98.103,
+    -3.775
+  ],
+  "candidate_latest_transport_internal_deg": [
+    0.7330000000000001,
+    44.482,
+    44.401,
+    -10.085,
+    98.103,
+    -3.775
+  ],
+  "vdo_fk_position_error_mm": 0.10405246486547472,
+  "vdo_fk_rotation_error_deg": 0.033800533157080384,
+  "upstream_link6_to_controller_tcp_mm": [
+    -0.005308488994115474,
+    0.00045666599441177014,
+    -28.60366284516849
+  ],
+  "controller_tool": "Arm_Tip",
+  "collision_stage": 0,
+  "note": "Recorded-state check only; fingertip calibration, live freshness, independent guard and physical validation remain outstanding."
+}

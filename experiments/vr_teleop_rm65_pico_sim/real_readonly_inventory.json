@@ -1,0 +1,144 @@
+{
+  "created_utc": "2026-10-31T06:20:39.207871+00:00",
+  "read_only": true,
+  "responses": {
+    "get_arm_software_version": {
+      "Plan_version": 7013888,
+      "state": "arm_software_version",
+      "Real-time_Kernal2": 512,
+      "Ctrl_version": 7014144,
+      "Real-time_Kernal1": 512
+    },
+    "get_current_arm_state": {
+      "state": "current_arm_state",
+      "arm_state": {
+        "joint": [
+          733,
+          -44482,
+          -44401,
+          -10085,
+          -98103,
+          -3775
+        ],
+        "pose": [
+          372075,
+          -20187,
+          286618,
+          2972,
+          131,
+          53
+        ],
+        "arm_err": 0,
+        "sys_err": 0
+      }
+    },
+    "get_current_tool_frame": {
+      "state": "current_tool_frame",
+      "tool_name": "Arm_Tip",
+      "pose": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "payload": 0,
+      "position": [
+        0,
+        0,
+        0
+      ]
+    },
+    "get_current_work_frame": {
+      "state": "current_work_frame",
+      "frame_name": "World",
+      "pose": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "get_joint_min_pos": {
+      "state": "joint_min_pos",
+      "min_pos": [
+        -178000,
+        -135000,
+        -135000,
+        -178000,
+        -128000,
+        -360000
+      ]
+    },
+    "get_joint_max_pos": {
+      "max_pos": [
+        178000,
+        135000,
+        135000,
+        178000,
+        128000,
+        360000
+      ],
+      "state": "joint_max_pos"
+    },
+    "get_joint_max_speed": {
+      "state": "joint_max_speed",
+      "joint_speed": [
+        30000,
+        30000,
+        37500,
+        37500,
+        37500,
+        37500
+      ]
+    },
+    "get_joint_en_state": {
+      "state": "joint_en_state",
+      "en_state": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    "get_joint_err_flag": {
+      "state": "joint_err_flag",
+      "err_flag": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "get_collision_stage": {
+      "state": "get_collision_stage",
+      "collision_stage": 0
+    },
+    "get_install_pose": {
+      "state": "install_pose",
+      "pose": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "errors": {
+    "get_arm_software_info": "timed out",
+    "get_gripper_state": "timed out"
+  },
+  "unmatched": [
+    {
+      "state": "get_collision_stage",
+      "collision_stage": 0
+    }
+  ],
+  "address": "192.168.1.18:8080"
+}

@@ -1,0 +1,46 @@
+ M .gitattributes
+ M .github/workflows/offline-check.yml
+ M .gitignore
+ M README.md
+ M config/example.json
+ M docs/CONFIGURATION.md
+ M docs/INSTALL.md
+ M docs/OPERATIONS.md
+ M docs/VALIDATION.md
+ M requirements.txt
+ M scripts/doctor.py
+ M scripts/jog_rm65_mujoco.py
+ M scripts/sim_control.py
+ M scripts/test_xr_fixed_base.py
+ M scripts/xr_recording.py
+ M setup.ps1
+ M start.ps1
+?? HANDOFF_RM65_PICO_20261021.md
+?? audit/
+?? config/real_baseline.local.json
+?? config/real_pico.example.json
+?? config/sim_real_bridge.example.json
+?? config/vdo_sources.json
+?? docs/ORIGINAL_REAL_TEST.md
+?? docs/REAL_PICO.md
+?? docs/REAL_PICO_V2.md
+?? docs/SIM_REAL_BRIDGE.md
+?? docs/VDO_MIGRATION.md
+?? patches/
+?? scripts/launch_vdo_pico.py
+?? scripts/launch_vdo_pico_real.py
+?? scripts/prepare_vdo.py
+?? scripts/probe_real_robot.py
+?? scripts/real_pico.py
+?? scripts/real_pico_guard.py
+?? scripts/real_robot_profile.py
+?? scripts/sim_real_bridge.py
+?? scripts/teach_real_pose.py
+?? scripts/test_native_windows_guard.py
+?? scripts/test_real_pico.py
+?? scripts/test_sim_real_bridge.py
+?? scripts/test_vdo_pico.py
+?? scripts/vdo_pico.py
+?? setup_vdo.ps1
+?? start_real.bat
+?? start_real.ps1

@@ -1,0 +1,10 @@
+{
+  "captured_date": "2026-10-31",
+  "source": "RM65 get_current_arm_state (read-only query)",
+  "joint_units": "degree",
+  "joint_deg": [0.736, -44.480, -44.401, -10.088, -98.103, -3.775],
+  "reported_tcp": {
+    "position_mm": [372.075, -20.176, 286.628],
+    "rpy_rad": [2.972, 0.131, 0.053]
+  }
+}

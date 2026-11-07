@@ -15,6 +15,9 @@ if (-not $Config) {
     if (-not (Test-Path -LiteralPath $Config)) { $Config=Join-Path $root 'config\example.json' }
 }
 $cfg=Get-Content -LiteralPath $Config -Raw | ConvertFrom-Json
+$backend=if ($cfg.backend) { $cfg.backend } else { 'vdo' }
+$vdoDir=if ($cfg.vdo_dir) { Resolve-ProjectPath $cfg.vdo_dir } else { Join-Path (Split-Path $root -Parent) 'vdo-rm65b' }
+$env:RM65_VDO_DIR=$vdoDir
 $serviceDir=Resolve-ProjectPath $cfg.service_dir
 $env:RM65_XR_SERVICE_DIR=$serviceDir
 $env:RM65_XR_SDK_DIR=Join-Path $serviceDir 'SDK\x64'
@@ -30,6 +33,10 @@ $script=switch($Mode) {
 }
 $arguments=@()
 if ($script) { $arguments=@('-u', (Join-Path $root "scripts\$script")) }
+if ($backend -eq 'vdo' -and $Mode -in @('teleop','jog')) {
+    $arguments=@('-u', (Join-Path $root 'scripts\launch_vdo_pico.py'), '--vdo-dir', $vdoDir, '--control-mode', $Mode)
+    if ($cfg.vdo_camera) { $arguments+=@('--camera', $cfg.vdo_camera) }
+}
 if ($Mode -eq 'teleop') {
     $arguments+=@('--frame',$cfg.teleop.frame,'--mode',$cfg.teleop.mode,'--scale',[string]$cfg.teleop.scale,
         '--speed',[string]$cfg.teleop.speed,'--yaw-deg',[string]$cfg.teleop.yaw_deg)
@@ -37,7 +44,12 @@ if ($Mode -eq 'teleop') {
 if ($Mode -eq 'jog') { $arguments+=@('--frame',$cfg.jog.frame,'--speed',[string]$cfg.jog.speed) }
 if ($Check) {
     Write-Host "Mode=$Mode; root=$root; service=$serviceDir; scene=$env:RM65_SCENE"
-    & $python (Join-Path $root 'scripts\doctor.py') --offline
+    if ($backend -eq 'vdo') {
+        $camera=if($cfg.vdo_camera){$cfg.vdo_camera}else{'d435i'}
+        & $python (Join-Path $root 'scripts\launch_vdo_pico.py') --vdo-dir $vdoDir --camera $camera --check
+    } else {
+        & $python (Join-Path $root 'scripts\doctor.py') --offline
+    }
     exit $LASTEXITCODE
 }
 if ($Mode -eq 'scene') {
@@ -48,7 +60,7 @@ $serviceExe=Join-Path $serviceDir 'RoboticsServiceProcess.exe'
 if (-not (Test-Path -LiteralPath $serviceExe)) { throw 'PC Service missing. Run install.bat.' }
 # One SDK client/motion mode at a time. Inspect process command lines without killing unrelated processes.
 $busy=@(Get-CimInstance Win32_Process | Where-Object {
-    $_.Name -match '^python(w)?\.exe$' -and $_.CommandLine -match '(teleop_rm65_xrt|jog_rm65_mujoco|track_controller)\.py'
+    $_.Name -match '^python(w)?\.exe$' -and $_.CommandLine -match '(launch_vdo_pico|teleop_rm65_xrt|jog_rm65_mujoco|track_controller)\.py'
 })
 if ($busy.Count) { throw 'An XR controller client is already running. Close it before starting another mode.' }
 $service=$null

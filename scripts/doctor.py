@@ -17,9 +17,20 @@ def main():
     parser.add_argument("--offline", action="store_true", help="check Python/model without requiring XR binaries")
     args = parser.parse_args()
     print(f"Python={platform.python_version()} {platform.machine()}; MuJoCo={mujoco.__version__}; NumPy={np.__version__}")
-    print(f"Scene={SCENE}")
-    arm = SimArm()
-    print(f"MODEL OK nq={arm.model.nq} nv={arm.model.nv} nu={arm.model.nu}; TCP={arm.tcp_pos.round(4)}")
+    import json
+    root = Path(__file__).resolve().parents[1]
+    config = root / "config/local.json"
+    if not config.is_file():
+        config = root / "config/example.json"
+    cfg = json.loads(config.read_text(encoding="utf-8"))
+    if cfg.get("backend", "vdo") == "vdo":
+        from launch_vdo_pico import check_backend
+        check_backend(os.environ.get("RM65_VDO_DIR") or str((root / cfg["vdo_dir"]).resolve()),
+                      cfg.get("vdo_camera", "d435i"))
+    else:
+        print(f"Scene={SCENE}")
+        arm = SimArm()
+        print(f"MODEL OK nq={arm.model.nq} nv={arm.model.nv} nu={arm.model.nu}; TCP={arm.tcp_pos.round(4)}")
     if not args.offline:
         for path in (DEFAULT_SERVICE_DIR / "RoboticsServiceProcess.exe", DEFAULT_SDK_DIR / "PXREARobotSDK.dll"):
             if not path.is_file():

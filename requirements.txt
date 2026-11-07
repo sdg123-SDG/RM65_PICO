@@ -1,3 +1,4 @@
 # Tested on Windows x64, CPython 3.10. MuJoCo scene uses model attachment.
 mujoco==3.15.0
 numpy==2.2.6
+opencv-python==4.12.0.88

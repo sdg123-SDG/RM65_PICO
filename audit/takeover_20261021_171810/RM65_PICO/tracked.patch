@@ -1,0 +1,401 @@
+diff --git a/.gitattributes b/.gitattributes
+index ccd6599..cabd6e2 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -7,3 +7,4 @@
+ *.png binary
+ *.stl binary
+ *.STL binary
++*.patch whitespace=-blank-at-eol
+diff --git a/.github/workflows/offline-check.yml b/.github/workflows/offline-check.yml
+index 7bb601b..c9512aa 100644
+--- a/.github/workflows/offline-check.yml
++++ b/.github/workflows/offline-check.yml
+@@ -1,4 +1,4 @@
+-name: Offline simulation checks
++name: Input mapping regression checks
+ on: [push, pull_request]
+ permissions:
+   contents: read
+@@ -11,7 +11,4 @@ jobs:
+         with:
+           python-version: '3.11'
+       - run: python -m pip install -r requirements.txt
+-      - run: python scripts/doctor.py --offline
+       - run: python -m unittest discover -s scripts -p "test_*.py" -v
+-      - run: python scripts/make_xr_test_fixture.py
+-      - run: python scripts/teleop_rm65_xrt.py --replay logs/xr/synthetic_replay_fixture.jsonl --headless
+diff --git a/.gitignore b/.gitignore
+index b3136b6..a2927b6 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -5,6 +5,8 @@ logs/
+ refs/
+ backups/
+ config/local.json
++config/real_pico.local.json
++config/sim_real_bridge.local.json
+ software/*
+ !software/manifest.json
+ !software/README.md
+diff --git a/README.md b/README.md
+index 26a4595..11f03f2 100644
+--- a/README.md
++++ b/README.md
+@@ -1,16 +1,18 @@
+ # RM65_PICO
+ 
+-用 **PICO 4 Ultra 左手柄**控制桌面 RM65-B / RMG24 的 **MuJoCo 仿真**。包含机械臂、桌子、立式木块、接收盒和 Gemini335 相机模型。
++用 **PICO 4 Ultra 左手柄**控制最新 **vdo-rm65b / vdo-sim** 的桌面 RM65-B / EG2 MuJoCo 仿真。保留新版 CLI、HTTP、轨迹与相机功能；默认 D435i，相机可配置为 Gemini335。
++
++**2026-10-19 已切换新版后端。** 同级目录的 vdo-rm65b、vdo-sim 才是当前运行环境，仓库原有 assets 和旧入口仅保留作历史回归参考，不是默认遥操后端。详见 [新版适配说明](docs/VDO_MIGRATION.md)。
+ 
+ **遥操通过局域网传输：PICO 连接 Wi-Fi，电脑与它在同一可互访网络，通过电脑 IP 连接 XRoboToolkit PC Service。运行时无需 USB 连接。**
+ 
+ 提供遥操、摇杆移动、场景预览、输入诊断、录制和离线回放。安装目录可放在任意盘符；启动器按自身位置寻找代码、模型、虚拟环境和软件，自动显示电脑当前网络 IPv4，不绑定作者电脑的路径或 IP。
+ 
+-**当前范围：Windows x64 + MuJoCo。相机是场景模型，不包含真实相机视频采集；本仓库不包含真机运动入口。**
++**当前范围：Windows x64 + MuJoCo；另有独立的实验性真机入口。相机是场景模型，不包含真实相机视频采集。真机必须先阅读 [仿真驱动真机说明](docs/SIM_REAL_BRIDGE.md)，普通 start.bat 仍只启动仿真。start_real.bat 已改成 PICO → 仿真模型 → 原版真机关节接口，尚未完成这版桥接的真机联动验收。**
+ 
+ ## 第一次使用
+ 
+-1. 安装 [Python 3.10–3.12 x64](https://www.python.org/downloads/windows/)（建议 3.11），准备 PICO 4 Ultra，并让电脑与头显连接同一可互访局域网。
++1. 安装 [Python 3.10–3.12 x64](https://www.python.org/downloads/windows/)（建议 3.11）和 Git，配置给定 GitLab 仓库的读取权限。准备 PICO 4 Ultra，让电脑与头显在同一可互访局域网。
+ 2. GitHub **Code → Download ZIP** 并解压，或执行：
+ 
+    ~~~powershell
+@@ -18,7 +20,7 @@
+    Set-Location RM65_PICO
+    ~~~
+ 
+-3. 双击 install.bat。它建立 .venv、安装固定版本 Python 依赖、下载并校验 PC Service、PICO APK 和 ADB。
++3. 双击 install.bat。建立 .venv，安装依赖（含新版视觉需要的 OpenCV），获取同级 vdo-rm65b / vdo-sim 并安装小型控制器接入补丁，下载并校验软件。GitLab 读取权限不随仓库分发；已有完整新版环境时可离线使用。
+ 4. 若头显已安装 XRoboToolkit，直接跳过。否则用**头显浏览器**打开[官方 APK 发布页](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases/tag/v1.1.1)，下载 XRoboToolkit-PICO-1.1.1.apk 并安装；按头显提示允许应用安装。另有可选的 USB/ADB 安装方式，见[安装说明](docs/INSTALL.md)，仅用于装应用。
+ 
+ 5. 双击 start.bat，选 **T**（遥操）或 **J**（摇杆）。一次只开一个模式。
+@@ -46,6 +48,7 @@
+ | 想做什么 | 文档 |
+ |---|---|
+ | 从零安装、头显安装、离线迁移 | [安装说明](docs/INSTALL.md) |
++| 仿真模型驱动真机、启动、配置与现场验收 | [真机桥接说明](docs/SIM_REAL_BRIDGE.md) |
+ | 按键、朝向设置、录制和回放 | [操作手册](docs/OPERATIONS.md) |
+ | 换目录、换电脑、速度/倍率/场景 | [配置说明](docs/CONFIGURATION.md) |
+ | WORKING 但不动、只有夹爪动、方向不对 | [故障排查](docs/TROUBLESHOOTING.md) |
+@@ -56,6 +59,8 @@
+ 
+ ## 当前验证状态
+ 
++新版状态以 [适配说明](docs/VDO_MIGRATION.md) 为准。下文是旧版于 2026-10-18 的现场记录。
++
+ 2026-10-18，在 Windows + PICO 4 Ultra 上确认了左手柄输入、夹爪，以及按下摇杆设置前方后的机械臂跟随。默认固定腕部姿态、速度上限 0.06 m/s。
+ 
+ 头显姿态未进入电脑时，自动朝向会等待 Head Tracking；手动设置前方已在实际使用中成功。三轴方向精度、整个工作空间的直线轨迹和抓放完成率仍需实际分轴验证。仿真 IK、关节限位和速度限制可能使实际末端运动偏离手柄目标；离线合成检查不能替代实际验证。
+diff --git a/config/example.json b/config/example.json
+index 85bf0ec..329672a 100644
+--- a/config/example.json
++++ b/config/example.json
+@@ -1,6 +1,9 @@
+ {
++  "backend": "vdo",
++  "vdo_dir": "../vdo-rm65b",
++  "vdo_camera": "d435i",
+   "service_dir": "software/XRoboToolkit-PC-Service",
+-  "scene": "assets/scene/custom_rm65_box/scene_gemini_gravcomp.xml",
++  "scene": "../vdo-sim/assets/scene/custom_rm65_box/scene_d435i_gravcomp.xml",
+   "tcp_offset_m": [0.0, 0.0, 0.137],
+   "teleop": {
+     "frame": "robot",
+diff --git a/docs/CONFIGURATION.md b/docs/CONFIGURATION.md
+index bf5d6c8..8e2bd1b 100644
+--- a/docs/CONFIGURATION.md
++++ b/docs/CONFIGURATION.md
+@@ -1,5 +1,7 @@
+ # 换电脑与配置
+ 
++当前默认 backend=vdo，vdo_dir 指向同级 vdo-rm65b，vdo_camera 选择 d435i / gemini335 / none。新版模型与控制来自该仓库及其同级 vdo-sim；TCP 从 site 自动读取，旧 scene/tcp_offset_m 不控制新版遥操。以下旧场景参数仅适用于历史后端，详见 [新版说明](VDO_MIGRATION.md)。
++
+ IP 不写进代码：启动器显示当前地址，头显选择正确电脑。换盘符建议在新位置重新解压/克隆、运行安装器建立 .venv。
+ 
+ ~~~powershell
+diff --git a/docs/INSTALL.md b/docs/INSTALL.md
+index 270238f..7948ec7 100644
+--- a/docs/INSTALL.md
++++ b/docs/INSTALL.md
+@@ -1,5 +1,7 @@
+ # 安装与迁移
+ 
++2026-10-19 起默认后端为同级的 vdo-rm65b / vdo-sim。需要 Git 及这两个 GitLab 仓库的读取权限；安装器会获取固定提交并应用适配补丁，见 [新版适配说明](VDO_MIGRATION.md)。软件和网络步骤继续如下。
++
+ ## 环境
+ 
+ - Windows 10/11 x64；PICO 4 Ultra、左手柄。遥操使用局域网连接，运行时不需要 USB 线。
+diff --git a/docs/OPERATIONS.md b/docs/OPERATIONS.md
+index 4cd963c..ac8280e 100644
+--- a/docs/OPERATIONS.md
++++ b/docs/OPERATIONS.md
+@@ -1,5 +1,7 @@
+ # 操作手册
+ 
++当前 start.bat 默认启动新版 vdo-rm65b 原生会话，提供 pico on/off/status、原生 CLI 与相机。旧环境的回放命令不用于新版轨迹复现，其他手柄/网络操作沿用。见 [新版适配说明](VDO_MIGRATION.md)。
++
+ 遥操链路为：PICO 左手柄 → 头显 XRoboToolkit → 局域网 → 电脑 PC Service → MuJoCo。头显通过电脑 IP 连接，运行时无需 USB；USB/ADB 仅是首次安装 APK 的可选方式。
+ 
+ ## 开始与退出
+diff --git a/docs/VALIDATION.md b/docs/VALIDATION.md
+index c987017..5b02210 100644
+--- a/docs/VALIDATION.md
++++ b/docs/VALIDATION.md
+@@ -1,5 +1,7 @@
+ # 本次整理发布的验证记录
+ 
++2026-10-19 新版后端验证见 [新版适配说明](VDO_MIGRATION.md)，下方为 2026-10-18 的历史验证记录，不代表新版已经完成实际 PICO 精度验证。
++
+ 日期：2026-10-18。Windows x64，CPython 3.10.11；MuJoCo 3.15.0、NumPy 2.2.6。
+ 
+ | 项目 | 结果与边界 |
+diff --git a/requirements.txt b/requirements.txt
+index 5021996..b8a844b 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,3 +1,4 @@
+ # Tested on Windows x64, CPython 3.10. MuJoCo scene uses model attachment.
+ mujoco==3.15.0
+ numpy==2.2.6
++opencv-python==4.12.0.88
+diff --git a/scripts/doctor.py b/scripts/doctor.py
+index 12dabd1..10eb357 100644
+--- a/scripts/doctor.py
++++ b/scripts/doctor.py
+@@ -17,9 +17,20 @@ def main():
+     parser.add_argument("--offline", action="store_true", help="check Python/model without requiring XR binaries")
+     args = parser.parse_args()
+     print(f"Python={platform.python_version()} {platform.machine()}; MuJoCo={mujoco.__version__}; NumPy={np.__version__}")
+-    print(f"Scene={SCENE}")
+-    arm = SimArm()
+-    print(f"MODEL OK nq={arm.model.nq} nv={arm.model.nv} nu={arm.model.nu}; TCP={arm.tcp_pos.round(4)}")
++    import json
++    root = Path(__file__).resolve().parents[1]
++    config = root / "config/local.json"
++    if not config.is_file():
++        config = root / "config/example.json"
++    cfg = json.loads(config.read_text(encoding="utf-8"))
++    if cfg.get("backend", "vdo") == "vdo":
++        from launch_vdo_pico import check_backend
++        check_backend(os.environ.get("RM65_VDO_DIR") or str((root / cfg["vdo_dir"]).resolve()),
++                      cfg.get("vdo_camera", "d435i"))
++    else:
++        print(f"Scene={SCENE}")
++        arm = SimArm()
++        print(f"MODEL OK nq={arm.model.nq} nv={arm.model.nv} nu={arm.model.nu}; TCP={arm.tcp_pos.round(4)}")
+     if not args.offline:
+         for path in (DEFAULT_SERVICE_DIR / "RoboticsServiceProcess.exe", DEFAULT_SDK_DIR / "PXREARobotSDK.dll"):
+             if not path.is_file():
+diff --git a/scripts/jog_rm65_mujoco.py b/scripts/jog_rm65_mujoco.py
+index 50aa9df..3f90763 100644
+--- a/scripts/jog_rm65_mujoco.py
++++ b/scripts/jog_rm65_mujoco.py
+@@ -55,6 +55,7 @@ class JogControl:
+             vel = ay * self.speed * np.array([1., 0., 0.])
+             vel += ax * self.speed * np.array([0., -1., 0.])
+             vel += np.array([0., 0., up])
++            vel = getattr(self.arm, "base_rotation", np.eye(3)) @ vel
+             vel *= min(1., self.speed / max(np.linalg.norm(vel), 1e-12))
+         if np.linalg.norm(vel) < 1e-9:
+             self.arm.hold()
+diff --git a/scripts/sim_control.py b/scripts/sim_control.py
+index 3676489..a2cfe98 100644
+--- a/scripts/sim_control.py
++++ b/scripts/sim_control.py
+@@ -192,6 +192,7 @@ class PoseTeleop:
+         self.require_heading = require_heading
+         self.heading_source = "waiting for Head Tracking"
+         self._last_click = False
++        self._pending_click_until = 0.
+         self._last_auto = False
+         self.target_world = self.arm.pos
+         self.target_tcp = getattr(self.arm, "tcp_pos", self.arm.pos)
+@@ -217,11 +218,20 @@ class PoseTeleop:
+         auto = bool(getattr(sample, "primary_button", False))
+         click_edge, auto_edge = click and not self._last_click, auto and not self._last_auto
+         self._last_click, self._last_auto = click, auto
++        now = time.monotonic()
++        if not ok:
++            self._pending_click_until = 0.
++        elif click_edge and not self.active:
++            # Pressing the thumbstick can inadvertently squeeze Grip. Remember
++            # the request until release; never change heading in active motion.
++            self._pending_click_until = now + 2.
+         if ok and not grip:
+             if auto_edge:
++                self._pending_click_until = 0.
+                 self.direction_basis = None
+                 self.heading_source = "automatic Head yaw"
+-            elif click_edge:
++            elif self._pending_click_until > now:
++                self._pending_click_until = 0.
+                 from xr_heading import heading_basis
+                 try:
+                     self.set_direction_basis(heading_basis(sample.quat_wxyz))
+@@ -254,7 +264,9 @@ class PoseTeleop:
+             if basis is None and self.require_heading:
+                 self.arm.hold()
+                 self.heading_source = "MISSING Head"
+-                self.reason = "enable Head Tracking OR release Grip + point forward + click stick"
++                self.reason = ("release Grip to set forward (stick click remembered)"
++                               if self._pending_click_until > now else
++                               "enable Head Tracking OR release Grip + point forward + click stick")
+                 return
+             if basis is None:
+                 self.mapping = controller_map(None, self.frame, azimuth, self.yaw_deg)
+@@ -267,6 +279,7 @@ class PoseTeleop:
+             self.capture_basis = basis.copy()
+             self.ref_ctrl, self.ref_ee = pos.copy(), self.arm.pos
+             self.ref_tcp = getattr(self.arm, "tcp_pos", self.arm.pos).copy()
++            self.ref_measured_tcp = getattr(self.arm, "measured_tcp", self.ref_tcp).copy()
+             self.ref_rotation = quat_matrix(sample.quat_wxyz)
+             self.ref_ee_rotation = quat_matrix(self.arm.quat)
+             self.hold_quat = self.arm.quat
+@@ -305,6 +318,6 @@ class PoseTeleop:
+         if not self.active or self.capture_basis is None:
+             return np.zeros(3), np.zeros(3)
+         target_basis = self.mapping @ self.capture_basis
+-        tool = getattr(self.arm, "tcp_pos", self.arm.pos)
+-        self.actual_delta = target_basis.T @ (tool - self.ref_tcp)
++        tool = getattr(self.arm, "measured_tcp", getattr(self.arm, "tcp_pos", self.arm.pos))
++        self.actual_delta = target_basis.T @ (tool - self.ref_measured_tcp)
+         return self.operator_delta.copy(), self.actual_delta.copy()
+diff --git a/scripts/test_xr_fixed_base.py b/scripts/test_xr_fixed_base.py
+index 225016a..3a7cd02 100644
+--- a/scripts/test_xr_fixed_base.py
++++ b/scripts/test_xr_fixed_base.py
+@@ -83,6 +83,26 @@ class FixedBaseTests(unittest.TestCase):
+         self.assertTrue(control.active)
+         self.assertEqual(control.heading_source, "manual forward")
+ 
++    def test_stick_click_survives_brief_grip_squeeze_before_release(self):
++        arm = FakeArm()
++        control = PoseTeleop(arm)
++        # Actual input: click first arrived with Grip=0.30196, then Grip fell
++        # to zero while axisClick stayed true. The old edge was consumed.
++        s = sample([.1,1.,.2], grip=.301960796)
++        s.axis_click = True
++        control.update(s, 0.)
++        self.assertFalse(control.active)
++        self.assertIsNone(control.direction_basis)
++        s.grip = 0.
++        s.stamp = time.time()
++        control.update(s, 0.)
++        self.assertEqual(control.heading_source, "manual forward")
++        self.assertIsNotNone(control.direction_basis)
++        s.grip, s.axis_click = 1., False
++        s.stamp = time.time()
++        control.update(s, 0.)
++        self.assertTrue(control.active)
++
+     def test_frozen_head_and_camera_with_rotated_base(self):
+         arm = FakeArm()
+         arm.base_rotation = np.array([[0.,-1.,0.],[1.,0.,0.],[0.,0.,1.]])
+diff --git a/scripts/xr_recording.py b/scripts/xr_recording.py
+index 9386007..acc3572 100644
+--- a/scripts/xr_recording.py
++++ b/scripts/xr_recording.py
+@@ -54,7 +54,18 @@ class SessionRecorder:
+                "control": {"active": control.active, "reason": control.reason,
+                            "heading_source": control.heading_source, "mapping": getattr(control, "mapping", None),
+                            "hand_fru": hand, "tool_fru": actual, "target_tcp": control.target_tcp},
+-               "robot": {"xyz": arm.pos, "tcp": arm.tcp_pos, "q": arm.data.qpos[arm.qadr]}}
++               "robot": {"xyz": getattr(arm, "measured_pos", arm.pos),
++                         "tcp": getattr(arm, "measured_tcp", arm.tcp_pos),
++                         "command_xyz": arm.pos, "command_tcp": arm.tcp_pos,
++                         "q": arm.data.qpos[arm.qadr]}}
++        if hasattr(arm,'armed'):
++            row['control']['real_armed']=arm.armed
++            row['control']['real_reason']=arm.reason
++            row['control']['real_fault']=arm.fault
++            row['control']['motion_reason']=arm.motion_reason
++            row['control']['frames_sent']=arm.frames_sent
++        if hasattr(arm,'recording_state'):
++            row['bridge']=arm.recording_state()
+         self.file.write(json.dumps(row, default=jsonable, separators=(",", ":")) + "\n")
+         self.count += 1
+         if now - self.last_flush > 1.:
+@@ -64,6 +75,10 @@ class SessionRecorder:
+     def close(self):
+         self.file.close()
+ 
++    def event(self,kind,message):
++        self.file.write(json.dumps({'type':kind,'message':message,'wall_time':time.time()},ensure_ascii=False)+'\n')
++        self.file.flush()
++
+ 
+ class ReplayInput:
+     def __init__(self, path):
+diff --git a/setup.ps1 b/setup.ps1
+index d175fd8..51e2494 100644
+--- a/setup.ps1
++++ b/setup.ps1
+@@ -1,6 +1,7 @@
+ param(
+     [string]$Python,
+     [switch]$SkipSoftware,
++    [switch]$SkipVdo,
+     [switch]$Offline,
+     [string]$CacheDir
+ )
+@@ -95,6 +96,7 @@ if (-not $SkipSoftware) {
+         Write-Host "Verified: $($package.file)"
+     }
+ }
+-& $venvPython (Join-Path $root 'scripts\doctor.py') --offline
++if (-not $SkipVdo) { & (Join-Path $root 'setup_vdo.ps1') -Offline:$Offline }
++& $venvPython (Join-Path $root 'scripts\launch_vdo_pico.py') --check
+ if ($LASTEXITCODE -ne 0) { throw 'Scene/dependency check failed.' }
+ Write-Host 'Installed. Next: install the headset APK (docs/INSTALL.md), then double-click start.bat.'
+diff --git a/start.ps1 b/start.ps1
+index 14d6577..44b4ea4 100644
+--- a/start.ps1
++++ b/start.ps1
+@@ -15,6 +15,9 @@ if (-not $Config) {
+     if (-not (Test-Path -LiteralPath $Config)) { $Config=Join-Path $root 'config\example.json' }
+ }
+ $cfg=Get-Content -LiteralPath $Config -Raw | ConvertFrom-Json
++$backend=if ($cfg.backend) { $cfg.backend } else { 'vdo' }
++$vdoDir=if ($cfg.vdo_dir) { Resolve-ProjectPath $cfg.vdo_dir } else { Join-Path (Split-Path $root -Parent) 'vdo-rm65b' }
++$env:RM65_VDO_DIR=$vdoDir
+ $serviceDir=Resolve-ProjectPath $cfg.service_dir
+ $env:RM65_XR_SERVICE_DIR=$serviceDir
+ $env:RM65_XR_SDK_DIR=Join-Path $serviceDir 'SDK\x64'
+@@ -30,6 +33,10 @@ $script=switch($Mode) {
+ }
+ $arguments=@()
+ if ($script) { $arguments=@('-u', (Join-Path $root "scripts\$script")) }
++if ($backend -eq 'vdo' -and $Mode -in @('teleop','jog')) {
++    $arguments=@('-u', (Join-Path $root 'scripts\launch_vdo_pico.py'), '--vdo-dir', $vdoDir, '--control-mode', $Mode)
++    if ($cfg.vdo_camera) { $arguments+=@('--camera', $cfg.vdo_camera) }
++}
+ if ($Mode -eq 'teleop') {
+     $arguments+=@('--frame',$cfg.teleop.frame,'--mode',$cfg.teleop.mode,'--scale',[string]$cfg.teleop.scale,
+         '--speed',[string]$cfg.teleop.speed,'--yaw-deg',[string]$cfg.teleop.yaw_deg)
+@@ -37,7 +44,12 @@ if ($Mode -eq 'teleop') {
+ if ($Mode -eq 'jog') { $arguments+=@('--frame',$cfg.jog.frame,'--speed',[string]$cfg.jog.speed) }
+ if ($Check) {
+     Write-Host "Mode=$Mode; root=$root; service=$serviceDir; scene=$env:RM65_SCENE"
+-    & $python (Join-Path $root 'scripts\doctor.py') --offline
++    if ($backend -eq 'vdo') {
++        $camera=if($cfg.vdo_camera){$cfg.vdo_camera}else{'d435i'}
++        & $python (Join-Path $root 'scripts\launch_vdo_pico.py') --vdo-dir $vdoDir --camera $camera --check
++    } else {
++        & $python (Join-Path $root 'scripts\doctor.py') --offline
++    }
+     exit $LASTEXITCODE
+ }
+ if ($Mode -eq 'scene') {
+@@ -48,7 +60,7 @@ $serviceExe=Join-Path $serviceDir 'RoboticsServiceProcess.exe'
+ if (-not (Test-Path -LiteralPath $serviceExe)) { throw 'PC Service missing. Run install.bat.' }
+ # One SDK client/motion mode at a time. Inspect process command lines without killing unrelated processes.
+ $busy=@(Get-CimInstance Win32_Process | Where-Object {
+-    $_.Name -match '^python(w)?\.exe$' -and $_.CommandLine -match '(teleop_rm65_xrt|jog_rm65_mujoco|track_controller)\.py'
++    $_.Name -match '^python(w)?\.exe$' -and $_.CommandLine -match '(launch_vdo_pico|teleop_rm65_xrt|jog_rm65_mujoco|track_controller)\.py'
+ })
+ if ($busy.Count) { throw 'An XR controller client is already running. Close it before starting another mode.' }
+ $service=$null

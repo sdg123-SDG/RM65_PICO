@@ -1,5 +1,7 @@
 # 换电脑与配置
 
+当前默认 backend=vdo，vdo_dir 指向同级 vdo-rm65b，vdo_camera 选择 d435i / gemini335 / none。新版模型与控制来自该仓库及其同级 vdo-sim；TCP 从 site 自动读取，旧 scene/tcp_offset_m 不控制新版遥操。以下旧场景参数仅适用于历史后端，详见 [新版说明](VDO_MIGRATION.md)。
+
 IP 不写进代码：启动器显示当前地址，头显选择正确电脑。换盘符建议在新位置重新解压/克隆、运行安装器建立 .venv。
 
 ~~~powershell

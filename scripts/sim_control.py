@@ -192,6 +192,7 @@ class PoseTeleop:
         self.require_heading = require_heading
         self.heading_source = "waiting for Head Tracking"
         self._last_click = False
+        self._pending_click_until = 0.
         self._last_auto = False
         self.target_world = self.arm.pos
         self.target_tcp = getattr(self.arm, "tcp_pos", self.arm.pos)
@@ -217,11 +218,20 @@ class PoseTeleop:
         auto = bool(getattr(sample, "primary_button", False))
         click_edge, auto_edge = click and not self._last_click, auto and not self._last_auto
         self._last_click, self._last_auto = click, auto
+        now = time.monotonic()
+        if not ok:
+            self._pending_click_until = 0.
+        elif click_edge and not self.active:
+            # Pressing the thumbstick can inadvertently squeeze Grip. Remember
+            # the request until release; never change heading in active motion.
+            self._pending_click_until = now + 2.
         if ok and not grip:
             if auto_edge:
+                self._pending_click_until = 0.
                 self.direction_basis = None
                 self.heading_source = "automatic Head yaw"
-            elif click_edge:
+            elif self._pending_click_until > now:
+                self._pending_click_until = 0.
                 from xr_heading import heading_basis
                 try:
                     self.set_direction_basis(heading_basis(sample.quat_wxyz))
@@ -254,7 +264,9 @@ class PoseTeleop:
             if basis is None and self.require_heading:
                 self.arm.hold()
                 self.heading_source = "MISSING Head"
-                self.reason = "enable Head Tracking OR release Grip + point forward + click stick"
+                self.reason = ("release Grip to set forward (stick click remembered)"
+                               if self._pending_click_until > now else
+                               "enable Head Tracking OR release Grip + point forward + click stick")
                 return
             if basis is None:
                 self.mapping = controller_map(None, self.frame, azimuth, self.yaw_deg)
@@ -267,6 +279,7 @@ class PoseTeleop:
             self.capture_basis = basis.copy()
             self.ref_ctrl, self.ref_ee = pos.copy(), self.arm.pos
             self.ref_tcp = getattr(self.arm, "tcp_pos", self.arm.pos).copy()
+            self.ref_measured_tcp = getattr(self.arm, "measured_tcp", self.ref_tcp).copy()
             self.ref_rotation = quat_matrix(sample.quat_wxyz)
             self.ref_ee_rotation = quat_matrix(self.arm.quat)
             self.hold_quat = self.arm.quat
@@ -305,6 +318,6 @@ class PoseTeleop:
         if not self.active or self.capture_basis is None:
             return np.zeros(3), np.zeros(3)
         target_basis = self.mapping @ self.capture_basis
-        tool = getattr(self.arm, "tcp_pos", self.arm.pos)
-        self.actual_delta = target_basis.T @ (tool - self.ref_tcp)
+        tool = getattr(self.arm, "measured_tcp", getattr(self.arm, "tcp_pos", self.arm.pos))
+        self.actual_delta = target_basis.T @ (tool - self.ref_measured_tcp)
         return self.operator_delta.copy(), self.actual_delta.copy()

@@ -1,0 +1,25 @@
+{
+  "error": "Realtime feedback stale",
+  "sender_fault": null,
+  "frames_sent": 25,
+  "status": "released; Head=MISSING; heading=manual forward; Grip=0.00; latest_sent=25 (local send only); REAL_joint_move=10.326deg; command_real_gap=0.000deg; stop_ack=True; GRIPPER DISABLED",
+  "last_sent_joint_deg": null,
+  "real_state_joint_deg": [
+    3.286,
+    4.934,
+    84.456,
+    -7.171,
+    67.123,
+    6.775
+  ],
+  "sim_joint_deg": [
+    3.286,
+    4.934,
+    84.456,
+    -7.171,
+    67.123,
+    6.775000000000001
+  ],
+  "hold_rpc": null,
+  "gripper_command": null
+}

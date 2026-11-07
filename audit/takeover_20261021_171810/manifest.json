@@ -1,0 +1,227 @@
+[
+  {
+    "file": "logs\\real\\bridge_error.json",
+    "sha256": "55e339db54d80e7bfcdbea034a7e6a1a6c22bf9128d1a21eeab8e0c2b79e4579",
+    "bytes": 1515
+  },
+  {
+    "file": "logs\\real\\post_timeout_probe_20261021.json",
+    "sha256": "7c94115f1d38f179c300758ced9ed1467459f85467042cd6e3dce6aaeaab8610",
+    "bytes": 2670
+  },
+  {
+    "file": "logs\\real\\trajectory_20261021_164020_285860.jsonl",
+    "sha256": "7f75633caa3ea062c4484f3e7828261ff5040e16844d150533057b0795ae4845",
+    "bytes": 150251
+  },
+  {
+    "file": "logs\\real\\trajectory_20261021_170240_539643.jsonl",
+    "sha256": "7924fd79859679f43dbd761d20b50c66cfae674f5b22607bbb4f383a503c8ce5",
+    "bytes": 1315
+  },
+  {
+    "file": "logs\\xr\\20261021_164020_309939.jsonl",
+    "sha256": "86ba4da9475d289849265ab2d7fd894adc6ece6a70ba315e9fb28766d469ee34",
+    "bytes": 2535913
+  },
+  {
+    "file": "logs\\xr\\20261021_170240_543635.jsonl",
+    "sha256": "83c0698d026dd2e64bc9deac59ec88854c477004693b468ef27e21dc3e6f7e12",
+    "bytes": 6065734
+  },
+  {
+    "file": "RM65_PICO\\status.txt",
+    "sha256": "146c3dd19776f9e1928995abb4c678a37f53a6bfca23fad2247dfc2ef88f8e94",
+    "bytes": 1171
+  },
+  {
+    "file": "RM65_PICO\\tracked.patch",
+    "sha256": "5516d45db1e2a3163e5f666d48909f23c08cf27bebd0765dc63e7e7f64eceea6",
+    "bytes": 20631
+  },
+  {
+    "file": "RM65_PICO\\untracked\\HANDOFF_RM65_PICO_20261021.md",
+    "sha256": "26bc31f4e0d71668eb20babff6dece7613abc99431875a932689d7801f803495",
+    "bytes": 12169
+  },
+  {
+    "file": "RM65_PICO\\untracked\\setup_vdo.ps1",
+    "sha256": "226b45722cb9808106844405ce580f7bdf433a95f6eb5f8e706a3418571735bc",
+    "bytes": 1521
+  },
+  {
+    "file": "RM65_PICO\\untracked\\start_real.bat",
+    "sha256": "7d982b5246cbae9c6fac2323ea4cd2b4b9196e76f541c92868cb6c1af9ee03cb",
+    "bytes": 129
+  },
+  {
+    "file": "RM65_PICO\\untracked\\start_real.ps1",
+    "sha256": "758608e23f9b4b6922f375dc42ca37730e60813584c3c0c42ae12eaee8c76c59",
+    "bytes": 4673
+  },
+  {
+    "file": "RM65_PICO\\untracked\\config\\real_baseline.local.json",
+    "sha256": "cdbe74befd410004564c6a0982f262b89f7a2c5becb449475ac2af9142f18698",
+    "bytes": 506
+  },
+  {
+    "file": "RM65_PICO\\untracked\\config\\real_pico.example.json",
+    "sha256": "90508036b0ef4f817b1a9bcc6755a0a00811d98a670327f6f86169f9aa7125b9",
+    "bytes": 437
+  },
+  {
+    "file": "RM65_PICO\\untracked\\config\\sim_real_bridge.example.json",
+    "sha256": "624b615f85566fccdbefa5b46672cf7388f3cd3e873bda0d5947ae7cd0970773",
+    "bytes": 326
+  },
+  {
+    "file": "RM65_PICO\\untracked\\config\\vdo_sources.json",
+    "sha256": "a5a9afb575417f42e90c35e89afa2851b7d1756d8ad8312d647ac42a1c490c7d",
+    "bytes": 307
+  },
+  {
+    "file": "RM65_PICO\\untracked\\docs\\ORIGINAL_REAL_TEST.md",
+    "sha256": "afab6e8ce1f23f1ca4b4269afd673bdef962e853554de3fc6f550c2f648f9a57",
+    "bytes": 3411
+  },
+  {
+    "file": "RM65_PICO\\untracked\\docs\\REAL_PICO.md",
+    "sha256": "aedae7e668dc7c6447ae36404a4b8dc2644058eb7611eb726fb925f188aef678",
+    "bytes": 7890
+  },
+  {
+    "file": "RM65_PICO\\untracked\\docs\\REAL_PICO_V2.md",
+    "sha256": "e31c0051fc97886351e6cf3d939d9c86618b036b4357d844bc2a7aa3dcd4de55",
+    "bytes": 10364
+  },
+  {
+    "file": "RM65_PICO\\untracked\\docs\\SIM_REAL_BRIDGE.md",
+    "sha256": "0f0590b2d4657fec80dab4aeebb8bfab4681ef65afece68c6606c3f276599d46",
+    "bytes": 11708
+  },
+  {
+    "file": "RM65_PICO\\untracked\\docs\\VDO_MIGRATION.md",
+    "sha256": "8b295bfd19e0bc06216b6aaf27b3168075df8b1838f0829520b996927c86e883",
+    "bytes": 4599
+  },
+  {
+    "file": "RM65_PICO\\untracked\\patches\\vdo-controller-hook.patch",
+    "sha256": "20c0c2b036312ec73c6b2397a0b88da4cdcac6ea762451cf27970afd5066f105",
+    "bytes": 1539
+  },
+  {
+    "file": "RM65_PICO\\untracked\\patches\\vdo-exit-status.patch",
+    "sha256": "e894d4a1a76a40d0bfabf8f42035479dc9d23370b6bf40112d7364a337a81766",
+    "bytes": 1243
+  },
+  {
+    "file": "RM65_PICO\\untracked\\patches\\vdo-gripper-ack.patch",
+    "sha256": "d3cae738b358b8fe677167dbe1e477647df50cf09af2b529cb85421b6a0ef7c3",
+    "bytes": 4243
+  },
+  {
+    "file": "RM65_PICO\\untracked\\patches\\vdo-hold-ack.patch",
+    "sha256": "9db1589772750b2d696a63b1847a506f9f6a7a47e963fe9cf6d29d33a0a3f4c4",
+    "bytes": 2549
+  },
+  {
+    "file": "RM65_PICO\\untracked\\patches\\vdo-joint-bridge.patch",
+    "sha256": "3189b947bbe4ca62b04a9acf6cc1956eb0fe5da4c1482674ed4ea8647a085454",
+    "bytes": 11570
+  },
+  {
+    "file": "RM65_PICO\\untracked\\patches\\vdo-windows-cli.patch",
+    "sha256": "0bdc1416bd1993f897700a89cc5809865167af3eba58657ab688a343f2156d92",
+    "bytes": 1860
+  },
+  {
+    "file": "RM65_PICO\\untracked\\patches\\vdo-windows-guard.patch",
+    "sha256": "b3e4d6fff96562b6e4d84490c9f745bac710a88b35de240f97b83eef456bdee0",
+    "bytes": 2682
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\launch_vdo_pico.py",
+    "sha256": "0437d8d757568c0f8b21edaa3476fca2d5f4b6428603ae30601ed3ff10511f1b",
+    "bytes": 3102
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\launch_vdo_pico_real.py",
+    "sha256": "32bfd651977c9fdfae6d09d229e429bfbd59dc12e6fa0ccb357f728e8d1949d1",
+    "bytes": 8013
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\prepare_vdo.py",
+    "sha256": "aa8321f6d0e54b7f64fd840cb40ecef70675f6864910226cff512db0c356032b",
+    "bytes": 2520
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\probe_real_robot.py",
+    "sha256": "1b93c62ad81a2c1bb03550ea8595dc12c10c50a1b921832cafccf5995251e292",
+    "bytes": 3732
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\real_pico.py",
+    "sha256": "06d34241bcde1578407af94ec607e0b72387e34c3beda07a47dda1e757a17921",
+    "bytes": 31602
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\real_pico_guard.py",
+    "sha256": "1a55c3f29ec4dc92d30eca5a976a8bdedec28e69f48188c1bf4a3c225da21cb7",
+    "bytes": 2045
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\real_robot_profile.py",
+    "sha256": "d145ceb7150ab26ecb15d43dbb4a4bb2119567a2e7d2ce088b96236ded636cfa",
+    "bytes": 4743
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\sim_real_bridge.py",
+    "sha256": "78644483739e335a18977597a457fe479cc45375c25cb577a1536c084fec85ac",
+    "bytes": 29313
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\teach_real_pose.py",
+    "sha256": "ffcf72af5500bee9d2011245997a99d00e5127ca6a4c30a79762b27fea0a33d6",
+    "bytes": 3076
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\test_native_windows_guard.py",
+    "sha256": "fde8950000396f644f37c860dd55afa29e3573a3518edb5d4285d4c4a227f479",
+    "bytes": 2254
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\test_real_pico.py",
+    "sha256": "7ee595098f34e45569e49fe42e67a7353ac656dcaff4f2e4f66312ef8b54e971",
+    "bytes": 17731
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\test_sim_real_bridge.py",
+    "sha256": "9bc1184dee1670d2c893b68fa1287f2f6f09b3356e6877651519a622c9bfec39",
+    "bytes": 31494
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\test_vdo_pico.py",
+    "sha256": "b5b830306ff117822d2d254973c0320821f555ffa521e70432f1af4eb12d802e",
+    "bytes": 4900
+  },
+  {
+    "file": "RM65_PICO\\untracked\\scripts\\vdo_pico.py",
+    "sha256": "ad4feabefa4c48f48b4f4e07f157fdd2f0b49d9f3f206257f94d7843cd435ef1",
+    "bytes": 14138
+  },
+  {
+    "file": "vdo-rm65b\\status.txt",
+    "sha256": "60d05a9422eb8e83f670ccd2bf45a3900105844d3a8ebbf4b00d12824097a853",
+    "bytes": 238
+  },
+  {
+    "file": "vdo-rm65b\\tracked.patch",
+    "sha256": "b353ec45b66f0a9f3e04095edcb8bd92b6c751e4aae61e90fe9b7bf89204d49c",
+    "bytes": 22339
+  },
+  {
+    "file": "vdo-rm65b\\untracked\\launch_rm65_box_real_pico.py",
+    "sha256": "8e0ce2d832e0d1417d56069cbb71af840a074c1f8b51d3eb158c4d0f3ec5181b",
+    "bytes": 361
+  }
+]

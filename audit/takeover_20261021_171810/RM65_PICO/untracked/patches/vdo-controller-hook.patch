@@ -1,0 +1,42 @@
+diff --git a/launch_rm65_box_cli.py b/launch_rm65_box_cli.py
+index f6b2c40..c164941 100644
+--- a/launch_rm65_box_cli.py
++++ b/launch_rm65_box_cli.py
+@@ -125,6 +125,8 @@ def main(
+     camera: str = "none",
+     real: str = "",
+     require_real: bool = False,
++    controller_factory=None,
++    controller_name: str = "xbox",
+     description: str = "RM65 桌面+木箱场景 + CLI / HTTP 指令通道",
+ ) -> int:
+     parser = argparse.ArgumentParser(description=description)
+@@ -240,7 +242,9 @@ def main(
+     cam_view = WristCamView(model, data, box.camera)
+     arm.PathBindTrail(trail)
+     arm.PathBindGizmos(gizmos)
+-    xbox = XboxEeServo(arm)
++    xbox = controller_factory(arm) if controller_factory is not None else XboxEeServo(arm)
++    if hasattr(xbox, "attach_scene_overlay"):
++        xbox.attach_scene_overlay(overlay)
+     executor = ArmCommandExecutor(arm, scene=box)
+     recorder = TrajectoryRecorder(
+         arm,
+@@ -319,7 +321,7 @@ def main(
+     def _run_user_loop() -> None:
+         if args.no_cli:
+             print("[http] --no-cli：等待请求，Ctrl+C 退出", flush=True)
+-            while True:
++            while not session.stop.is_set():
+                 time.sleep(0.2)
+             return
+         shell.run()
+@@ -330,6 +332,8 @@ def main(
+         try:
+             xbox.handle_cli(["on"])
+         except Exception as exc:
++            if controller_factory is not None:
++                raise
+             print(f"[xbox] 未能自动打开: {exc}", flush=True)
+ 
+     print(f"Loaded {scene}")

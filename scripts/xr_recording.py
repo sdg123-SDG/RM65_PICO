@@ -54,7 +54,18 @@ class SessionRecorder:
                "control": {"active": control.active, "reason": control.reason,
                            "heading_source": control.heading_source, "mapping": getattr(control, "mapping", None),
                            "hand_fru": hand, "tool_fru": actual, "target_tcp": control.target_tcp},
-               "robot": {"xyz": arm.pos, "tcp": arm.tcp_pos, "q": arm.data.qpos[arm.qadr]}}
+               "robot": {"xyz": getattr(arm, "measured_pos", arm.pos),
+                         "tcp": getattr(arm, "measured_tcp", arm.tcp_pos),
+                         "command_xyz": arm.pos, "command_tcp": arm.tcp_pos,
+                         "q": arm.data.qpos[arm.qadr]}}
+        if hasattr(arm,'armed'):
+            row['control']['real_armed']=arm.armed
+            row['control']['real_reason']=arm.reason
+            row['control']['real_fault']=arm.fault
+            row['control']['motion_reason']=arm.motion_reason
+            row['control']['frames_sent']=arm.frames_sent
+        if hasattr(arm,'recording_state'):
+            row['bridge']=arm.recording_state()
         self.file.write(json.dumps(row, default=jsonable, separators=(",", ":")) + "\n")
         self.count += 1
         if now - self.last_flush > 1.:
@@ -63,6 +74,10 @@ class SessionRecorder:
 
     def close(self):
         self.file.close()
+
+    def event(self,kind,message):
+        self.file.write(json.dumps({'type':kind,'message':message,'wall_time':time.time()},ensure_ascii=False)+'\n')
+        self.file.flush()
 
 
 class ReplayInput:

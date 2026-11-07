@@ -1,0 +1,79 @@
+diff --git a/real/json_link.py b/real/json_link.py
+index 309b257..bb1b0fe 100644
+--- a/real/json_link.py
++++ b/real/json_link.py
+@@ -47,6 +47,7 @@ class JsonArmLink:
+         self._lock = threading.Lock()
+         self._buf = bytearray()
+         self.last_arm_state_received = 0.0
++        self.last_gripper_rpc = None
+ 
+     def send_stream(self, payload: dict[str, Any], *, timeout_s: float = 0.1) -> None:
+         """Bounded send-only CANFD frame; uses the same socket/parser lock.
+@@ -112,10 +113,15 @@ class JsonArmLink:
+         line = json.dumps(payload, separators=(",", ":")).encode("utf-8") + b"\r\n"
+         cmd = str(payload.get("command") or "")
+         skip_state = cmd in _MOTION_CMDS
++        gripper = cmd == "set_gripper_position"
++        if gripper:
++            self.last_gripper_rpc = {"request": dict(payload), "reply": None, "skipped": []}
+         with self._lock:
+             prev = self._sock.gettimeout()
+             deadline = None if timeout_s is None else time.monotonic() + float(timeout_s)
+             try:
++                if deadline is not None:
++                    self._sock.settimeout(max(1e-6,deadline-time.monotonic()))
+                 self._sock.sendall(line)
+                 while True:
+                     if deadline is not None:
+@@ -124,6 +130,13 @@ class JsonArmLink:
+                             raise TimeoutError("timed out")
+                         self._sock.settimeout(left)
+                     msg = self._recv_json_locked()
++                    if gripper:
++                        # CANFD acknowledgements/trajectory events may remain on
++                        # this shared stream. They are NOT a gripper rejection.
++                        if msg.get("command") not in {"set_gripper", "set_gripper_position"}:
++                            self.last_gripper_rpc["skipped"] = (self.last_gripper_rpc["skipped"] + [msg])[-16:]
++                            continue
++                        self.last_gripper_rpc["reply"] = msg
+                     if skip_state and msg.get("state") == "current_arm_state":
+                         continue
+                     if cmd == "get_current_arm_state":
+@@ -132,6 +145,10 @@ class JsonArmLink:
+                             return msg
+                         continue
+                     return msg
++            except Exception as exc:
++                if gripper:
++                    self.last_gripper_rpc["error"] = f"{type(exc).__name__}: {exc}"
++                raise
+             finally:
+                 self._sock.settimeout(prev)
+ 
+diff --git a/real/real_arm.py b/real/real_arm.py
+index 6edb824..3b1b50f 100644
+--- a/real/real_arm.py
++++ b/real/real_arm.py
+@@ -329,11 +329,18 @@ class JsonMotionArm(Rm65ExtArm):
+     def Set_Gripper_Position(self, position: int, block: bool = True, *, canonical: bool = False) -> int:
+         assert self.policy is not None
+         if canonical:
++            payload={"command":"set_gripper_position","position":int(position),"block":bool(block)}
++            self.last_gripper_command={"request":payload,"reply":None,"accepted":False}
+             try:
+-                msg=self.plant.rpc({"command":"set_gripper_position","position":int(position),"block":bool(block)},timeout_s=0.25)
+-            except Exception:
++                msg=self.plant.rpc(payload,timeout_s=0.25)
++            except Exception as exc:
++                self.last_gripper_command["error"]=f"{type(exc).__name__}: {exc}"
++                self.last_gripper_command["transport"]=getattr(self.link,"last_gripper_rpc",None)
+                 return CONTROLLER_DATE_RETURN_FALSE
+-            return SYS_NORMAL if msg.get('command')=='set_gripper' and msg.get('state') is True else CONTROLLER_DATE_RETURN_FALSE
++            accepted=msg.get('command') in {'set_gripper','set_gripper_position'} and msg.get('state') is True
++            self.last_gripper_command.update(reply=msg,accepted=accepted)
++            self.last_gripper_command["transport"]=getattr(self.link,"last_gripper_rpc",None)
++            return SYS_NORMAL if accepted else CONTROLLER_DATE_RETURN_FALSE
+         return self.policy.rpc_cmd(
+             {"command": "gripper_position", "position": int(position)},
+             "gripper_position",

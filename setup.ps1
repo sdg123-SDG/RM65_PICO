@@ -1,6 +1,7 @@
 param(
     [string]$Python,
     [switch]$SkipSoftware,
+    [switch]$SkipVdo,
     [switch]$Offline,
     [string]$CacheDir
 )
@@ -95,6 +96,7 @@ if (-not $SkipSoftware) {
         Write-Host "Verified: $($package.file)"
     }
 }
-& $venvPython (Join-Path $root 'scripts\doctor.py') --offline
+if (-not $SkipVdo) { & (Join-Path $root 'setup_vdo.ps1') -Offline:$Offline }
+& $venvPython (Join-Path $root 'scripts\launch_vdo_pico.py') --check
 if ($LASTEXITCODE -ne 0) { throw 'Scene/dependency check failed.' }
 Write-Host 'Installed. Next: install the headset APK (docs/INSTALL.md), then double-click start.bat.'

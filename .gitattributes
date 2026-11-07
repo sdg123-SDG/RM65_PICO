@@ -7,3 +7,4 @@
 *.png binary
 *.stl binary
 *.STL binary
+*.patch whitespace=-blank-at-eol

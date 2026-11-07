@@ -1,0 +1,11 @@
+ M launch_rm65_box_cli.py
+ M real/heartbeat.py
+ M real/json_link.py
+ M real/json_plant.py
+ M real/json_policy.py
+ M real/protect.py
+ M real/real_arm.py
+ M simu/cli.py
+ M simu/rm65_arm.py
+ M simu/session.py
+?? launch_rm65_box_real_pico.py

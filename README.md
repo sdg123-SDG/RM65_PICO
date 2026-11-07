@@ -1,16 +1,18 @@
 # RM65_PICO
 
-用 **PICO 4 Ultra 左手柄**控制桌面 RM65-B / RMG24 的 **MuJoCo 仿真**。包含机械臂、桌子、立式木块、接收盒和 Gemini335 相机模型。
+用 **PICO 4 Ultra 左手柄**控制最新 **vdo-rm65b / vdo-sim** 的桌面 RM65-B / EG2 MuJoCo 仿真。保留新版 CLI、HTTP、轨迹与相机功能；默认 D435i，相机可配置为 Gemini335。
+
+**2026-10-19 已切换新版后端。** 同级目录的 vdo-rm65b、vdo-sim 才是当前运行环境，仓库原有 assets 和旧入口仅保留作历史回归参考，不是默认遥操后端。详见 [新版适配说明](docs/VDO_MIGRATION.md)。
 
 **遥操通过局域网传输：PICO 连接 Wi-Fi，电脑与它在同一可互访网络，通过电脑 IP 连接 XRoboToolkit PC Service。运行时无需 USB 连接。**
 
 提供遥操、摇杆移动、场景预览、输入诊断、录制和离线回放。安装目录可放在任意盘符；启动器按自身位置寻找代码、模型、虚拟环境和软件，自动显示电脑当前网络 IPv4，不绑定作者电脑的路径或 IP。
 
-**当前范围：Windows x64 + MuJoCo。相机是场景模型，不包含真实相机视频采集；本仓库不包含真机运动入口。**
+**当前范围：Windows x64 + MuJoCo；另有独立的实验性真机入口。相机是场景模型，不包含真实相机视频采集。真机必须先阅读 [仿真驱动真机说明](docs/SIM_REAL_BRIDGE.md)，普通 start.bat 仍只启动仿真。start_real.bat 已改成 PICO → 仿真模型 → 原版真机关节接口，尚未完成这版桥接的真机联动验收。**
 
 ## 第一次使用
 
-1. 安装 [Python 3.10–3.12 x64](https://www.python.org/downloads/windows/)（建议 3.11），准备 PICO 4 Ultra，并让电脑与头显连接同一可互访局域网。
+1. 安装 [Python 3.10–3.12 x64](https://www.python.org/downloads/windows/)（建议 3.11）和 Git，配置给定 GitLab 仓库的读取权限。准备 PICO 4 Ultra，让电脑与头显在同一可互访局域网。
 2. GitHub **Code → Download ZIP** 并解压，或执行：
 
    ~~~powershell
@@ -18,7 +20,7 @@
    Set-Location RM65_PICO
    ~~~
 
-3. 双击 install.bat。它建立 .venv、安装固定版本 Python 依赖、下载并校验 PC Service、PICO APK 和 ADB。
+3. 双击 install.bat。建立 .venv，安装依赖（含新版视觉需要的 OpenCV），获取同级 vdo-rm65b / vdo-sim 并安装小型控制器接入补丁，下载并校验软件。GitLab 读取权限不随仓库分发；已有完整新版环境时可离线使用。
 4. 若头显已安装 XRoboToolkit，直接跳过。否则用**头显浏览器**打开[官方 APK 发布页](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases/tag/v1.1.1)，下载 XRoboToolkit-PICO-1.1.1.apk 并安装；按头显提示允许应用安装。另有可选的 USB/ADB 安装方式，见[安装说明](docs/INSTALL.md)，仅用于装应用。
 
 5. 双击 start.bat，选 **T**（遥操）或 **J**（摇杆）。一次只开一个模式。
@@ -46,6 +48,7 @@
 | 想做什么 | 文档 |
 |---|---|
 | 从零安装、头显安装、离线迁移 | [安装说明](docs/INSTALL.md) |
+| 仿真模型驱动真机、启动、配置与现场验收 | [真机桥接说明](docs/SIM_REAL_BRIDGE.md) |
 | 按键、朝向设置、录制和回放 | [操作手册](docs/OPERATIONS.md) |
 | 换目录、换电脑、速度/倍率/场景 | [配置说明](docs/CONFIGURATION.md) |
 | WORKING 但不动、只有夹爪动、方向不对 | [故障排查](docs/TROUBLESHOOTING.md) |
@@ -55,6 +58,8 @@
 | 模型授权及参考项目来源 | [来源与授权](THIRD_PARTY_NOTICES.md)、[参考实现](docs/REFERENCES.md) |
 
 ## 当前验证状态
+
+新版状态以 [适配说明](docs/VDO_MIGRATION.md) 为准。下文是旧版于 2026-10-18 的现场记录。
 
 2026-10-18，在 Windows + PICO 4 Ultra 上确认了左手柄输入、夹爪，以及按下摇杆设置前方后的机械臂跟随。默认固定腕部姿态、速度上限 0.06 m/s。
 

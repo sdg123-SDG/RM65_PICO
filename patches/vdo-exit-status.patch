@@ -1,0 +1,42 @@
+diff --git a/launch_rm65_box_cli.py b/launch_rm65_box_cli.py
+index f6b2c40..5d5682c 100644
+--- a/launch_rm65_box_cli.py
++++ b/launch_rm65_box_cli.py
+@@ -360,6 +366,7 @@ def main(
+             return 0
+ 
+     started_viewer = False
++    exit_status = 0
+     try:
+         if args.headless:
+             if xbox_on:
+@@ -390,6 +397,7 @@ def main(
+         return 0
+     except Exception as exc:
+         print(f"ERROR: {exc}", file=sys.stderr)
++        exit_status = 1
+         return 1
+     finally:
+         try:
+@@ -399,13 +407,18 @@ def main(
+             pass
+         try:
+             session.shutdown()
+-        except Exception:
+-            pass
++        except Exception as exc:
++            exit_status = 1
++            print(f"ERROR: session shutdown was not confirmed: {exc}", file=sys.stderr, flush=True)
++        controller_error = getattr(xbox, "error", None)
++        if controller_error:
++            exit_status = 1
++            print(f"ERROR: controller stopped: {controller_error}", file=sys.stderr, flush=True)
+         if protect is not None:
+             protect.close()
+         restore_cooked_tty()
+         if started_viewer:
+-            os._exit(0)
++            os._exit(exit_status)
+ 
+ 
+ if __name__ == "__main__":

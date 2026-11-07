@@ -83,6 +83,26 @@ class FixedBaseTests(unittest.TestCase):
         self.assertTrue(control.active)
         self.assertEqual(control.heading_source, "manual forward")
 
+    def test_stick_click_survives_brief_grip_squeeze_before_release(self):
+        arm = FakeArm()
+        control = PoseTeleop(arm)
+        # Actual input: click first arrived with Grip=0.30196, then Grip fell
+        # to zero while axisClick stayed true. The old edge was consumed.
+        s = sample([.1,1.,.2], grip=.301960796)
+        s.axis_click = True
+        control.update(s, 0.)
+        self.assertFalse(control.active)
+        self.assertIsNone(control.direction_basis)
+        s.grip = 0.
+        s.stamp = time.time()
+        control.update(s, 0.)
+        self.assertEqual(control.heading_source, "manual forward")
+        self.assertIsNotNone(control.direction_basis)
+        s.grip, s.axis_click = 1., False
+        s.stamp = time.time()
+        control.update(s, 0.)
+        self.assertTrue(control.active)
+
     def test_frozen_head_and_camera_with_rotated_base(self):
         arm = FakeArm()
         arm.base_rotation = np.array([[0.,-1.,0.],[1.,0.,0.],[0.,0.,1.]])
