@@ -344,7 +344,10 @@ class LatestTransport:
                 recovered = False
                 state_prefix = (('current_arm_state' in raw and 'arm_state' in raw)
                                 or 'joint_state' in raw)
-                if self.gripper_inflight is not None and state_prefix:
+                # The ACK can arrive after the short gripper wait has expired
+                # (seen ~0.3-0.9 s after set_gripper_pick_on), so recover it
+                # even when no gripper command is still marked in flight.
+                if state_prefix:
                     for i, char in enumerate(raw):
                         if char != '{' or i == 0:
                             continue
