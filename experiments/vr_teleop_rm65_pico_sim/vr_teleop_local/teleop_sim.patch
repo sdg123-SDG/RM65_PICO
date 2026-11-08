@@ -1,5 +1,5 @@
 diff --git a/example/teleop_sim.py b/example/teleop_sim.py
-index 142f944..a465e82 100644
+index 142f944..47cb987 100644
 --- a/example/teleop_sim.py
 +++ b/example/teleop_sim.py
 @@ -13,6 +13,7 @@ Supports multiple robot configurations via --robot:
@@ -29,7 +29,7 @@ index 142f944..a465e82 100644
 +    path = os.environ.get("COLLECT_TRIGGER_FILE")
 +    if not path:
 +        return
-+    pressed = "1" if status.get("controller_valid") and float(status.get("trigger", 0.)) >= 0.8 else "0"
++    pressed = "1" if status.get("controller_valid") and max(float(status.get("trigger", 0.)), float(status.get("grip", 0.))) >= 0.8 else "0"
 +    if pressed != _trigger_flag["last"]:
 +        _trigger_flag["last"] = pressed
 +        try:

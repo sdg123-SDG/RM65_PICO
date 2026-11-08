@@ -49,7 +49,7 @@ def publish_left_trigger(status: dict) -> None:
     path = os.environ.get("COLLECT_TRIGGER_FILE")
     if not path:
         return
-    pressed = "1" if status.get("controller_valid") and float(status.get("trigger", 0.)) >= 0.8 else "0"
+    pressed = "1" if status.get("controller_valid") and max(float(status.get("trigger", 0.)), float(status.get("grip", 0.))) >= 0.8 else "0"
     if pressed != _trigger_flag["last"]:
         _trigger_flag["last"] = pressed
         try:
