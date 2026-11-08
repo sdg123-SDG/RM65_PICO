@@ -127,7 +127,7 @@ class RealBridgeLoopbackTests(unittest.TestCase):
         t = LatestTransport.__new__(LatestTransport)
         t._sock = receiver; t.buf = bytearray(); t.lock = threading.Lock()
         t.gripper_inflight = ({'command': 'set_gripper_release', 'speed': 500}, time.monotonic())
-        t.gripper_error = None; t.gripper_target = None
+        t.gripper_error = None; t.gripper_target = None; t.gripper_resend = None
         t.pending_query = ('get_current_arm_state', time.monotonic())
         t.protocol_errors = []; t.protocol_pause = None
         t.hold_accepted = False; t.hold_target = None
@@ -155,7 +155,7 @@ class RealBridgeLoopbackTests(unittest.TestCase):
         t = LatestTransport.__new__(LatestTransport)
         t._sock = receiver; t.buf = bytearray(); t.lock = threading.Lock()
         t.gripper_inflight = ({'command': 'set_gripper_release', 'speed': 500}, time.monotonic())
-        t.gripper_error = None; t.gripper_target = None; t.pending_query = None
+        t.gripper_error = None; t.gripper_target = None; t.gripper_resend = None; t.pending_query = None
         t.protocol_errors = []; t.protocol_pause = None
         events = []; feedback = []
         t.record = lambda event, **fields: events.append((event, fields))
@@ -238,17 +238,17 @@ class RealBridgeLoopbackTests(unittest.TestCase):
             bridge.observe_gripper(0., True)
             bridge.observe_gripper(.01, True)
             wait_commands(1)
-            self.assertEqual(fake.calls[-1], {
+            self.assertEqual([c for c in fake.calls if c['command'] in grip_cmds][-1], {
                 'command': 'set_gripper_position', 'position': 1000, 'block': False})
             for count, trigger, position in ((2, .25, 750), (3, .50, 500), (4, .85, 150)):
                 bridge.observe_gripper(trigger, True)
                 wait_commands(count)
-                self.assertEqual(fake.calls[-1], {
+                self.assertEqual([c for c in fake.calls if c['command'] in grip_cmds][-1], {
                     'command': 'set_gripper_position', 'position': position, 'block': False})
             # Fully pressed: one force-controlled grasp, held while the trigger stays deep.
             bridge.observe_gripper(1., True)
             wait_commands(5)
-            self.assertEqual(fake.calls[-1], {
+            self.assertEqual([c for c in fake.calls if c['command'] in grip_cmds][-1], {
                 'command': 'set_gripper_pick_on', 'speed': 500, 'force': 500, 'block': False})
             # teleop_sim mirrors this onto the MuJoCo gripper: must stay a number.
             self.assertEqual(bridge.gripper_position / 1000.0, 0.001)
@@ -257,7 +257,7 @@ class RealBridgeLoopbackTests(unittest.TestCase):
             wait_commands(5)
             bridge.observe_gripper(0., True)
             wait_commands(6)
-            self.assertEqual(fake.calls[-1], {
+            self.assertEqual([c for c in fake.calls if c['command'] in grip_cmds][-1], {
                 'command': 'set_gripper_position', 'position': 1000, 'block': False})
             bridge.observe_gripper(.01, False)
             time.sleep(.25)

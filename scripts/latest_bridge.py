@@ -63,6 +63,16 @@ class TraceWriter:
             raise RuntimeError(self.error)
 
 
+# This controller does not acknowledge non-blocking gripper commands, so waiting
+# a full second per command made the gripper lag and swallowed quick trigger
+# changes. Wait only briefly, keep gripper sends spaced (the controller has
+# rejected adjacent mixed commands), and resend the last target once after the
+# trigger settles in case the controller dropped it.
+GRIPPER_ACK_WAIT_S = .15
+GRIPPER_MIN_GAP_S = .15
+GRIPPER_RESEND_AFTER_S = .5
+
+
 class LatestTransport:
     def __init__(self, real, cfg):
         self.real, self.cfg = real, cfg
@@ -74,6 +84,7 @@ class LatestTransport:
         self.gripper_target = None
         self.gripper_inflight = None
         self.gripper_last_send = 0.
+        self.gripper_resend = None
         self.gripper_error = None
         self.lock = threading.Lock()
         self.wake = threading.Event()
@@ -236,6 +247,7 @@ class LatestTransport:
     def cancel_gripper(self):
         with self.lock:
             self.gripper_target = None
+            self.gripper_resend = None
 
     def replay_status(self):
         with self.lock:
@@ -291,6 +303,8 @@ class LatestTransport:
             self.gripper_inflight = None
             if pending is not None:
                 self.gripper_error = None if msg.get('state') is True else 'controller rejected gripper command'
+                if msg.get('state') is True and self.gripper_resend == pending[0]:
+                    self.gripper_resend = None  # confirmed; no safety resend needed
         self.record('gripper_ack', reply=msg, requested=pending)
         if pending is not None and msg.get('state') is not True:
             print('[gripper] command rejected; a later press can send a new command', flush=True)
@@ -538,24 +552,31 @@ class LatestTransport:
                     raise RuntimeError('Hold unconfirmed: feedback stale while awaiting hold' if self.stop_deadline is not None else 'Realtime feedback stale')
                 self._expire_query(now)
                 with self.lock:
-                    if self.gripper_inflight is not None and now-self.gripper_inflight[1] > 1.0:
+                    if self.gripper_inflight is not None and now-self.gripper_inflight[1] > GRIPPER_ACK_WAIT_S:
                         self.gripper_error = 'gripper command not acknowledged'
                         self.gripper_inflight = None
                         self.record('gripper_timeout')
-                        print('[gripper] no acknowledgement; a later press can send a new command', flush=True)
                 if time.perf_counter()>=next_send:
                     if self.pending_query is not None:
                         pass  # No mixed request while a read-only reply is outstanding.
-                    elif not stopping and self.cfg.get('gripper_enabled', False) and self.gripper_target is not None and self.gripper_inflight is None and now-self.gripper_last_send >= .1:
+                    elif (not stopping and self.cfg.get('gripper_enabled', False) and self.gripper_inflight is None
+                          and now-self.gripper_last_send >= GRIPPER_MIN_GAP_S
+                          and (self.gripper_target is not None
+                               or (self.gripper_resend is not None and now-self.gripper_last_send >= GRIPPER_RESEND_AFTER_S))):
                         with self.lock:
                             grip = self.gripper_target
                             self.gripper_target = None
-                        if grip is not None:
-                            self._write(grip[0])
+                            resend = grip is None
+                            if resend:
+                                payload, self.gripper_resend = self.gripper_resend, None
+                            else:
+                                payload = self.gripper_resend = grip[0]
+                        if payload is not None:
+                            self._write(payload)
                             with self.lock:
-                                self.gripper_inflight = (grip[0], time.monotonic())
+                                self.gripper_inflight = (payload, time.monotonic())
                             self.gripper_last_send = now
-                            self.record('gripper_sent',payload=grip[0])
+                            self.record('gripper_sent',payload=payload,resend=resend)
                     elif streaming or self.stop_pending:
                         self._tick(now)
                     elif now>=next_query:
