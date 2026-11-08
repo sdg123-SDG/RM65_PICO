@@ -38,6 +38,24 @@ from contextlib import contextmanager
 import json
 import time
 import uuid
+import os
+
+
+_trigger_flag = {"last": None}
+
+
+def publish_left_trigger(status: dict) -> None:
+    """Optional: let the data collector see the left trigger (only when COLLECT_TRIGGER_FILE is set)."""
+    path = os.environ.get("COLLECT_TRIGGER_FILE")
+    if not path:
+        return
+    pressed = "1" if status.get("controller_valid") and float(status.get("trigger", 0.)) >= 0.8 else "0"
+    if pressed != _trigger_flag["last"]:
+        _trigger_flag["last"] = pressed
+        try:
+            _Path(path).write_text(pressed, encoding="ascii")
+        except OSError:
+            pass
 from pathlib import Path
 
 import mujoco
@@ -925,6 +943,7 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
             elif xrt_input is not None:
                 # --- Local XRoboToolkit controller adapter for this experiment ---
                 controller_tracked = xrt_input.poll()
+                publish_left_trigger(xrt_input.sample_status())
                 if follow_latch is not None:
                     status = xrt_input.sample_status()
                     real_bridge.observe_gripper(status.get('right_trigger', 0.), status.get('right_trigger_valid', False))
