@@ -41,19 +41,19 @@ import uuid
 import os
 
 
-_trigger_flag = {"last": None}
+_follow_flag = {"last": None}
 
 
-def publish_left_trigger(status: dict) -> None:
-    """Optional: let the data collector see the left trigger (only when COLLECT_TRIGGER_FILE is set)."""
+def publish_follow_state(active: bool) -> None:
+    """Optional: tell the data collector whether the arm is following (only when COLLECT_TRIGGER_FILE is set)."""
     path = os.environ.get("COLLECT_TRIGGER_FILE")
     if not path:
         return
-    pressed = "1" if status.get("controller_valid") and max(float(status.get("trigger", 0.)), float(status.get("grip", 0.))) >= 0.8 else "0"
-    if pressed != _trigger_flag["last"]:
-        _trigger_flag["last"] = pressed
+    value = "1" if active else "0"
+    if value != _follow_flag["last"]:
+        _follow_flag["last"] = value
         try:
-            _Path(path).write_text(pressed, encoding="ascii")
+            _Path(path).write_text(value, encoding="ascii")
         except OSError:
             pass
 from pathlib import Path
@@ -943,7 +943,6 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
             elif xrt_input is not None:
                 # --- Local XRoboToolkit controller adapter for this experiment ---
                 controller_tracked = xrt_input.poll()
-                publish_left_trigger(xrt_input.sample_status())
                 if follow_latch is not None:
                     status = xrt_input.sample_status()
                     real_bridge.observe_gripper(status.get('right_trigger', 0.), status.get('right_trigger_valid', False))
@@ -1046,6 +1045,7 @@ def _run_single_arm(config: dict, args: argparse.Namespace) -> None:
                     if now - last_xrt_diag_time >= 2.0:
                         print(f"[xrtoolkit] {xrt_input.diagnostics()}", flush=True)
                         last_xrt_diag_time = now
+                publish_follow_state(xrt_clutch_active)
             else:
                 # --- Quest 3 path (unchanged) ---
                 packet = recv_latest_packet(sock)
