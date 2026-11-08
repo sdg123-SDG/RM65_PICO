@@ -246,6 +246,31 @@ class RealBridgeLoopbackTests(unittest.TestCase):
         self.assertNotIn('invalid_rx', [event for event, _ in events])
         self.assertIsNone(t.protocol_pause)
 
+    def test_gripper_ack_cut_inside_state_key(self):
+        # Real log 2026-11-08: '{"state": "joint_stat' + ACK + newline + 'e", "joint": ...}'.
+        from real.json_codec import decode_arm_state
+        sender, receiver = socket.socketpair()
+        self.addCleanup(sender.close); self.addCleanup(receiver.close)
+        t = LatestTransport.__new__(LatestTransport)
+        t._sock = receiver; t.buf = bytearray(); t.lock = threading.Lock()
+        t.gripper_inflight = None
+        t.gripper_error = None; t.gripper_target = None; t.gripper_resend = None; t.pending_query = None
+        t.protocol_errors = []; t.protocol_pause = None
+        events = []; feedback = []
+        t.record = lambda event, **fields: events.append((event, fields))
+        t._publish_feedback = lambda state: feedback.append(state)
+        cached = decode_arm_state({'state': 'current_arm_state', 'arm_state': {
+            'joint': [0, 0, 0, 0, 0, 0], 'pose': [0, 0, 0, 0, 0, 0], 'arm_err': 0, 'sys_err': 0}})
+        t.cached_state = lambda: copy.copy(cached)
+        wire = (b'{"state": "joint_stat{"command": "set_gripper", "state": true}\r\n'
+                b'e", "joint": [-122, -60527, -26845, -6016, -92675, -8927], "arm_err": 0}\r\n')
+        sender.sendall(wire)
+        t._read()
+        self.assertEqual(len(feedback), 1)
+        self.assertIn('interleaved_gripper_ack_recovered', [event for event, _ in events])
+        self.assertNotIn('invalid_rx', [event for event, _ in events])
+        self.assertIsNone(t.protocol_pause)
+
     def test_right_trigger_closes_in_proportion_and_release_opens(self):
         fake = LocalController(); self.addCleanup(fake.close)
         with tempfile.TemporaryDirectory(prefix="rm65-gripper-loopback-") as tmp:

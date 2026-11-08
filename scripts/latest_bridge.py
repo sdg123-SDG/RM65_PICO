@@ -342,8 +342,9 @@ class LatestTransport:
                 # into a current_arm_state or joint_state response. Recover only
                 # those observed shapes, then reassemble the interrupted line.
                 recovered = False
-                state_prefix = (('current_arm_state' in raw and 'arm_state' in raw)
-                                or 'joint_state' in raw)
+                # The ACK can be cut in at any byte, even inside a key such as
+                # '"joint_stat' + ACK + 'e"', so accept any state reply prefix.
+                state_prefix = raw.lstrip().startswith('{"state"')
                 # The ACK can arrive after the short gripper wait has expired
                 # (seen ~0.3-0.9 s after set_gripper_pick_on), so recover it
                 # even when no gripper command is still marked in flight.
@@ -356,8 +357,7 @@ class LatestTransport:
                         except json.JSONDecodeError:
                             continue
                         if (isinstance(ack, dict) and ack.get('command') == 'set_gripper'
-                                and isinstance(ack.get('state'), bool) and not raw[end:].strip()
-                                and 'joint' in raw[:i]):
+                                and isinstance(ack.get('state'), bool) and not raw[end:].strip()):
                             self.buf[:0] = raw[:i].encode('utf-8')
                             self._handle_gripper_ack(ack)
                             self.record('interleaved_gripper_ack_recovered')
@@ -573,7 +573,11 @@ class LatestTransport:
                             if resend:
                                 payload, self.gripper_resend = self.gripper_resend, None
                             else:
-                                payload = self.gripper_resend = grip[0]
+                                payload = grip[0]
+                                # pick_on is acknowledged (late) by the controller;
+                                # resending it only adds another ACK that can split
+                                # a feedback line.
+                                self.gripper_resend = None if payload['command'] == 'set_gripper_pick_on' else payload
                         if payload is not None:
                             self._write(payload)
                             with self.lock:
